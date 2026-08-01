@@ -67,7 +67,7 @@ that shell.
 ## Build
 
 The default build pins Denigma commit
-`cb7c616c47a70228dc096c6e681465021ad59ac1` (Denigma 4.0.0).
+`4916d16a5205e5fb389efffdcbd7824c05770cd4` (Denigma 4.0.0).
 
 ```sh
 emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel
@@ -134,6 +134,15 @@ Use `npm run configure:local` instead when Denigma is checked out at
 `../denigma`. After that, press F5 with the Chrome or Edge launch configuration;
 it rebuilds the site and starts the local server automatically.
 
+`setup:vscode` also generates an ignored local `CMakeUserPresets.json` for the
+active Emscripten installation. CMake Tools' **Build** button uses that preset
+to build `web_dist` as `MinSizeRel`, so no compiler kit is needed. The ignored,
+machine-local preset records the `PATH` from the shell that runs
+`setup:vscode`; no machine-specific paths are committed. Rerun
+`npm run setup:vscode:force` from a shell where `npm run doctor` succeeds after
+changing tool installations. Saving a CMake file automatically reconfigures
+`build-wasm` with the preset; merely opening the workspace does not.
+
 ## Tests
 
 ```sh
@@ -190,8 +199,9 @@ The selected MUSX bytes are transferred from the page to a same-origin Web
 Worker and copied into WebAssembly memory. Generated files return to the page as
 local `Blob` objects. No source or output bytes are sent over the network.
 
-The diagnostic report contains the Denigma and Denigma Online build versions, output
-format, settings, and Denigma messages. It never embeds source file contents.
+The diagnostic report contains the Denigma version and commit, the Denigma
+Online commit and build hash, output format, settings, and Denigma messages. It
+never embeds source file contents.
 Users can review the copied text before putting it in an issue.
 
 ## Browser support
@@ -214,14 +224,16 @@ No directory handles are persisted by the application.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.d45ccdf7148f.wasm:    4,503,106 bytes (4.29 MiB)
-denigma.d45ccdf7148f.wasm.gz: 1,327,396 bytes (1.27 MiB)
+denigma.d45e7b04d93f.wasm:    5,429,989 bytes (5.18 MiB)
+denigma.d45e7b04d93f.wasm.gz: 1,455,149 bytes (1.39 MiB)
 ```
 
 This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at
 the pinned Denigma commit. The single binary
 shares Denigma, MUSX parsing, XML, compression, and exporter dependencies and is
-cached under a content-hashed immutable URL.
+cached under a content-hashed immutable URL. C++ exception catching is enabled
+across Denigma and all linked dependencies so conversion failures can be
+reported without terminating the WebAssembly runtime.
 
 ## Updating Denigma
 

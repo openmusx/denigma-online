@@ -5,7 +5,7 @@
 The design was based on local checkouts of:
 
 - `denigma-examples` commit `fdee3075f5c28118b80b9f650ca0bb974a62ea67`
-- `denigma` commit `cb7c616c47a70228dc096c6e681465021ad59ac1`
+- `denigma` commit `4916d16a5205e5fb389efffdcbd7824c05770cd4`
   (version 4.0.0)
 
 The examples expose three small C functions, each in its own WASM build. They
@@ -74,6 +74,11 @@ parts, output names, and output byte spans. JavaScript copies transferable
 output buffers before destroying the result. Input and result allocations are
 released on every success and error path. The page revokes generated object
 URLs before a new conversion and on `pagehide`.
+
+The root CMake configuration enables Emscripten's `-fexceptions` at compile and
+link time before adding Denigma. This keeps exception handling consistent across
+the wrapper and all linked dependencies, allowing conversion failures to reach
+the wrapper's diagnostic handling instead of aborting the WebAssembly runtime.
 
 The worker retains one selected input today. Its request/response messages and
 per-result diagnostics already provide the seam for a future coordinator that

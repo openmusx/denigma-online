@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -21,6 +22,18 @@ function hash(contents) {
   return createHash('sha256').update(contents).digest('hex').slice(0, 12);
 }
 
+function repositoryCommit() {
+  const override = process.env.DENIGMA_ONLINE_COMMIT?.trim();
+  if (override) return /^[0-9a-f]{7,40}$/i.test(override) ? override : 'unknown';
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+    windowsHide: true
+  });
+  const commit = result.status === 0 ? result.stdout.trim() : '';
+  return /^[0-9a-f]{40}$/i.test(commit) ? commit : 'unknown';
+}
+
 async function emit(name, extension, contents) {
   const fileName = `${name}.${hash(contents)}.${extension}`;
   await writeFile(join(assets, fileName), contents);
@@ -37,11 +50,13 @@ await writeFile(join(dist, `${wasmUrl.slice(2)}.gz`), wasmGzip);
 const moduleSource = await readFile(resolve(moduleArg));
 const moduleUrl = await emit('denigma', 'js', moduleSource);
 const buildVersion = hash(Buffer.concat([wasm, moduleSource]));
+const denigmaOnlineCommit = repositoryCommit();
 
 let workerSource = await readFile(join(source, 'worker.js'), 'utf8');
 workerSource = workerSource
   .replace('__DENIGMA_MODULE_URL__', moduleUrl.replace('./assets/', './'))
   .replace('__DENIGMA_WASM_URL__', wasmUrl.replace('./assets/', './'))
+  .replace('__DENIGMA_ONLINE_COMMIT__', denigmaOnlineCommit)
   .replace('__BUILD_VERSION__', buildVersion);
 const workerUrl = await emit('worker', 'js', workerSource);
 
@@ -63,6 +78,7 @@ await writeFile(join(dist, 'index.html'), html);
 await cp(join(root, 'LICENSE'), join(dist, 'LICENSE.txt'));
 await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   buildVersion,
+  denigmaOnlineCommit,
   wasm: wasmUrl,
   module: moduleUrl,
   worker: workerUrl,

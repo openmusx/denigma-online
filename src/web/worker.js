@@ -135,6 +135,7 @@ async function initialize() {
     type: 'ready',
     denigmaVersion: stringAt(Module._denigma_version()),
     denigmaCommit: stringAt(Module._denigma_commit()),
+    denigmaOnlineCommit: '__DENIGMA_ONLINE_COMMIT__',
     buildVersion: '__BUILD_VERSION__'
   });
 }

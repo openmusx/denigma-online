@@ -15,6 +15,9 @@
   </header>
 
   <main>
+    <aside class="preview-notice" aria-label="Technology preview">
+      <strong>Technology preview:</strong> Denigma Online is a work in progress. It may not convert every score correctly yet, so please review exported files before relying on them. Feedback is welcome.
+    </aside>
     <p class="privacy"><strong>Private by design:</strong> your score stays on this computer. Conversion happens entirely in your browser, and your document data is never uploaded in any format.</p>
 
     <section class="panel" aria-labelledby="convertHeading">
@@ -58,7 +61,7 @@
           <option value="1">Layer 1</option><option value="2">Layer 2</option>
           <option value="3">Layer 3</option><option value="4">Layer 4</option>
         </select>
-        <p class="help">Choose a layer only if you know that it is used exclusively for cues in this document.</p>
+        <p class="help">Choose a layer only if you know that it is used exclusively for cues in this document. Other layers may still be interpreted as cues.</p>
       </fieldset>
 
       <fieldset id="mnxOptions" hidden>
@@ -112,7 +115,7 @@
     </section>
   </main>
 
-  <footer>Denigma Online · MIT licensed · No analytics, telemetry, remote fonts, or third-party runtime services.</footer>
+  <footer>Denigma Online · <a href="./LICENSE.txt" target="_blank" rel="noreferrer">Review the MIT License and warranty disclaimer</a> · No analytics, telemetry, remote fonts, or third-party runtime services.</footer>
   <script type="module" src="__APP_URL__"></script>
 </body>
 </html>

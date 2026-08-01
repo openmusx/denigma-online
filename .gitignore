@@ -10,3 +10,4 @@
 # VS Code's active workspace configuration is local. Copy recommendations from
 # the tracked .vscode_template directory when setting up a checkout.
 /.vscode/
+/CMakeUserPresets.json
