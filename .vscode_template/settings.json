@@ -1,0 +1,20 @@
+{
+  "cmake.configureOnOpen": false,
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.buildDirectory": "${workspaceFolder}/build-wasm",
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build-wasm",
+    "--background-index"
+  ],
+  "files.exclude": {
+    "**/.DS_Store": true
+  },
+  "files.watcherExclude": {
+    "**/build-wasm/**": true,
+    "**/dist/**": true
+  },
+  "search.exclude": {
+    "**/build-wasm/**": true,
+    "**/dist/**": true
+  }
+}

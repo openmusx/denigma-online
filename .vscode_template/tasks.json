@@ -1,0 +1,104 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Environment: Check prerequisites",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "doctor"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "WASM: Configure (pinned Denigma)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "configure"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "WASM: Configure (local Denigma)",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "scripts/configure.mjs",
+        "--denigma", "${input:denigmaSource}"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "WASM: Build site",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$gcc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Web: Rebuild assets only",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build:web"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: Unit",
+      "type": "shell",
+      "command": "npm",
+      "args": ["test"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: WASM",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:wasm"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: All",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Test: Unit", "Test: WASM"],
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Dev: Serve dist",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "serve"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "denigma-dev-server",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Starting Denigma development server",
+          "endsPattern": "^Denigma development server ready"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Dev: Build and serve",
+      "dependsOrder": "sequence",
+      "dependsOn": ["WASM: Build site", "Dev: Serve dist"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "denigmaSource",
+      "type": "promptString",
+      "description": "Path to the local Denigma checkout",
+      "default": "../denigma"
+    }
+  ]
+}

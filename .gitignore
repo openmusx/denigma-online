@@ -1,0 +1,12 @@
+# Build products
+/build-wasm/
+/dist/
+
+# Editor and OS files
+.DS_Store
+*.swp
+*.user
+
+# VS Code's active workspace configuration is local. Copy recommendations from
+# the tracked .vscode_template directory when setting up a checkout.
+/.vscode/

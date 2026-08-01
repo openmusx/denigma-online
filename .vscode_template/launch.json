@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Denigma Online: Chrome",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:8080/",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "Dev: Build and serve",
+      "sourceMaps": true
+    },
+    {
+      "name": "Denigma Online: Edge",
+      "type": "pwa-msedge",
+      "request": "launch",
+      "url": "http://127.0.0.1:8080/",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "Dev: Build and serve",
+      "sourceMaps": true
+    }
+  ]
+}
