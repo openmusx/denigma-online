@@ -185,13 +185,15 @@ Serve it as the corresponding *.wasm URL when Accept-Encoding includes gzip
 X-Content-Type-Options: nosniff
 Referrer-Policy: no-referrer
 Permissions-Policy: camera=(), microphone=(), geolocation=()
-Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'
 ```
 
 The tracked Apache source is `deploy/apache.htaccess`. An nginx example is
 included at `deploy/nginx.conf.example`; it enables `gzip_static` for the
 generated WASM sidecar. The HTML also has a matching CSP meta tag, but an HTTP
-header is preferable in production.
+header is preferable in production. The policy retains the narrow
+`wasm-unsafe-eval` token and also allows `unsafe-eval` because Safari versions
+without support for the narrower token otherwise block WebAssembly startup.
 
 Do not enable request-body upload handlers for this location. The application
 only performs normal `GET` requests for its own static assets.
