@@ -41,7 +41,7 @@ struct PartInfo
     int partOrder{};
 };
 
-struct WebResult
+struct OnlineResult
 {
     bool success{ true };
     std::vector<denigma::Diagnostic> diagnostics;
@@ -49,13 +49,13 @@ struct WebResult
     std::vector<OutputFile> outputs;
 };
 
-void addDiagnostic(WebResult& result, denigma::MessageSeverity severity, std::string message)
+void addDiagnostic(OnlineResult& result, denigma::MessageSeverity severity, std::string message)
 {
     result.success = result.success && severity != denigma::MessageSeverity::Error;
     result.diagnostics.push_back({ severity, std::move(message) });
 }
 
-denigma::CommonOptions makeCommonOptions(WebResult& result, const char* sourceName)
+denigma::CommonOptions makeCommonOptions(OnlineResult& result, const char* sourceName)
 {
     denigma::CommonOptions options;
     options.sourceName = sourceName ? sourceName : "browser.musx";
@@ -73,7 +73,7 @@ std::span<const std::byte> inputBytes(const std::uint8_t* data, std::size_t size
     return { reinterpret_cast<const std::byte*>(data), size };
 }
 
-void appendOutput(WebResult& result, std::string_view name, std::span<const std::byte> data)
+void appendOutput(OnlineResult& result, std::string_view name, std::span<const std::byte> data)
 {
     OutputFile output;
     output.name = name;
@@ -84,7 +84,7 @@ void appendOutput(WebResult& result, std::string_view name, std::span<const std:
     result.outputs.push_back(std::move(output));
 }
 
-void appendOutput(WebResult& result, std::string name, const std::string& data)
+void appendOutput(OnlineResult& result, std::string name, const std::string& data)
 {
     OutputFile output;
     output.name = std::move(name);
@@ -92,7 +92,7 @@ void appendOutput(WebResult& result, std::string name, const std::string& data)
     result.outputs.push_back(std::move(output));
 }
 
-void finishConversion(WebResult& result, const denigma::ConversionResult& conversionResult)
+void finishConversion(OnlineResult& result, const denigma::ConversionResult& conversionResult)
 {
     if (conversionResult.hasError()) {
         result.success = false;
@@ -106,7 +106,7 @@ void finishConversion(WebResult& result, const denigma::ConversionResult& conver
     }
 }
 
-void inspectMusx(WebResult& result, std::span<const std::byte> bytes, const char* sourceName)
+void inspectMusx(OnlineResult& result, std::span<const std::byte> bytes, const char* sourceName)
 {
     denigma::BufferRandomAccessReader reader(bytes);
     denigma::DenigmaContext context(DENIGMA_NAME);
@@ -135,7 +135,7 @@ void inspectMusx(WebResult& result, std::span<const std::byte> bytes, const char
     });
 }
 
-void convertMusicXml(WebResult& result,
+void convertMusicXml(OnlineResult& result,
                      const denigma::BufferRandomAccessReader& reader,
                      const char* sourceName,
                      bool includeTempo,
@@ -164,7 +164,7 @@ void convertMusicXml(WebResult& result,
     finishConversion(result, conversionResult);
 }
 
-void convertMnx(WebResult& result,
+void convertMnx(OnlineResult& result,
                 const denigma::BufferRandomAccessReader& reader,
                 const char* sourceName,
                 bool includeTempo,
@@ -190,7 +190,7 @@ void convertMnx(WebResult& result,
     finishConversion(result, conversionResult);
 }
 
-void convertEnigmaXml(WebResult& result,
+void convertEnigmaXml(OnlineResult& result,
                       const denigma::BufferRandomAccessReader& reader,
                       const char* sourceName)
 {
@@ -206,9 +206,9 @@ void convertEnigmaXml(WebResult& result,
 }
 
 template <typename Callback>
-WebResult* makeResult(Callback&& callback)
+OnlineResult* makeResult(Callback&& callback)
 {
-    auto result = std::make_unique<WebResult>();
+    auto result = std::make_unique<OnlineResult>();
     try {
         callback(*result);
     } catch (const std::exception& ex) {
@@ -232,12 +232,12 @@ extern "C" {
 void* denigma_malloc(std::size_t size) { return ::operator new(size, std::nothrow); }
 void denigma_free(void* pointer) { ::operator delete(pointer); }
 
-WebResult* denigma_inspect(const std::uint8_t* data, std::size_t size, const char* sourceName)
+OnlineResult* denigma_inspect(const std::uint8_t* data, std::size_t size, const char* sourceName)
 {
-    return makeResult([&](WebResult& result) { inspectMusx(result, inputBytes(data, size), sourceName); });
+    return makeResult([&](OnlineResult& result) { inspectMusx(result, inputBytes(data, size), sourceName); });
 }
 
-WebResult* denigma_convert(const std::uint8_t* data,
+OnlineResult* denigma_convert(const std::uint8_t* data,
                            std::size_t size,
                            const char* sourceName,
                            int format,
@@ -248,7 +248,7 @@ WebResult* denigma_convert(const std::uint8_t* data,
                            const int* selectedOutputs,
                            std::size_t selectedCount)
 {
-    return makeResult([&](WebResult& result) {
+    return makeResult([&](OnlineResult& result) {
         const auto bytes = inputBytes(data, size);
         denigma::BufferRandomAccessReader reader(bytes);
         switch (format) {
@@ -270,61 +270,61 @@ WebResult* denigma_convert(const std::uint8_t* data,
     });
 }
 
-void denigma_result_destroy(WebResult* result) { delete result; }
-int denigma_result_success(const WebResult* result) { return result && result->success ? 1 : 0; }
+void denigma_result_destroy(OnlineResult* result) { delete result; }
+int denigma_result_success(const OnlineResult* result) { return result && result->success ? 1 : 0; }
 
-std::size_t denigma_result_diagnostic_count(const WebResult* result)
+std::size_t denigma_result_diagnostic_count(const OnlineResult* result)
 {
     return result ? result->diagnostics.size() : 0;
 }
 
-int denigma_result_diagnostic_severity(const WebResult* result, std::size_t index)
+int denigma_result_diagnostic_severity(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->diagnostics, index) : nullptr;
     return item ? static_cast<int>(item->severity) : static_cast<int>(denigma::MessageSeverity::Error);
 }
 
-const char* denigma_result_diagnostic_message(const WebResult* result, std::size_t index)
+const char* denigma_result_diagnostic_message(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->diagnostics, index) : nullptr;
     return item ? item->message.c_str() : "";
 }
 
-std::size_t denigma_result_part_count(const WebResult* result) { return result ? result->parts.size() : 0; }
+std::size_t denigma_result_part_count(const OnlineResult* result) { return result ? result->parts.size() : 0; }
 
-int denigma_result_part_id(const WebResult* result, std::size_t index)
+int denigma_result_part_id(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->parts, index) : nullptr;
     return item ? item->id : 0;
 }
 
-const char* denigma_result_part_name(const WebResult* result, std::size_t index)
+const char* denigma_result_part_name(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->parts, index) : nullptr;
     return item ? item->name.c_str() : "";
 }
 
-int denigma_result_part_output_index(const WebResult* result, std::size_t index)
+int denigma_result_part_output_index(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->parts, index) : nullptr;
     return item ? item->outputIndex : -1;
 }
 
-std::size_t denigma_result_output_count(const WebResult* result) { return result ? result->outputs.size() : 0; }
+std::size_t denigma_result_output_count(const OnlineResult* result) { return result ? result->outputs.size() : 0; }
 
-const char* denigma_result_output_name(const WebResult* result, std::size_t index)
+const char* denigma_result_output_name(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->outputs, index) : nullptr;
     return item ? item->name.c_str() : "";
 }
 
-const std::uint8_t* denigma_result_output_data(const WebResult* result, std::size_t index)
+const std::uint8_t* denigma_result_output_data(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->outputs, index) : nullptr;
     return item && !item->data.empty() ? item->data.data() : nullptr;
 }
 
-std::size_t denigma_result_output_size(const WebResult* result, std::size_t index)
+std::size_t denigma_result_output_size(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->outputs, index) : nullptr;
     return item ? item->data.size() : 0;

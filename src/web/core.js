@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 export const FORMATS = Object.freeze({
-  musicxml: { id: 0, label: 'MusicXML', extension: 'musicxml', mime: 'application/vnd.recordare.musicxml+xml' },
-  mnx: { id: 1, label: 'MNX', extension: 'mnx', mime: 'application/json' },
-  enigmaxml: { id: 2, label: 'EnigmaXML', extension: 'enigmaxml', mime: 'application/xml' }
+  musicxml: { id: 0, label: 'MusicXML (uncompressed)', extension: 'musicxml', mime: 'application/vnd.recordare.musicxml+xml' },
+  mnx: { id: 1, label: 'MNX (experimental)', extension: 'mnx', mime: 'application/json' },
+  enigmaxml: { id: 2, label: 'EnigmaXML (proprietary Finale XML)', extension: 'enigmaxml', mime: 'application/xml' }
 });
 
 export function isMusxFile(file) {
@@ -57,10 +57,10 @@ export function diagnosticReport({ denigmaVersion, denigmaCommit, buildVersion, 
     ? diagnostics.map((item) => `[${item.severity.toUpperCase()}] ${item.message}`)
     : ['(No diagnostics were returned.)'];
   return [
-    'Denigma web conversion report',
+    'Denigma Online conversion report',
     `Denigma version: ${denigmaVersion}`,
     `Denigma commit: ${denigmaCommit}`,
-    `Web build: ${buildVersion}`,
+    `Denigma Online build: ${buildVersion}`,
     `Output format: ${format}`,
     'Options:',
     ...optionLines,

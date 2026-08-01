@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Convert Finale MUSX files to MusicXML, MNX, or EnigmaXML entirely in your browser.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Denigma Web Converter</title>
+  <title>Denigma Online</title>
   <link rel="stylesheet" href="__STYLES_URL__">
 </head>
 <body>
   <header>
-    <h1>Denigma Web Converter</h1>
-    <p class="tagline">Convert Finale MUSX files to open music-notation formats.</p>
+    <h1>Denigma Online</h1>
+    <p class="tagline">Convert Finale MUSX files to other music-notation formats.</p>
   </header>
 
   <main>
-    <p class="privacy"><strong>Private by design:</strong> your score stays on this computer. Conversion happens entirely in your browser; no document data is uploaded.</p>
+    <p class="privacy"><strong>Private by design:</strong> your score stays on this computer. Conversion happens entirely in your browser, and your document data is never uploaded in any format.</p>
 
     <section class="panel" aria-labelledby="convertHeading">
       <h2 id="convertHeading">Convert a file</h2>
@@ -25,7 +25,7 @@
         <div class="drop-zone" id="dropZone">
           <label for="file" class="label">Choose a .musx file</label>
           <input id="file" type="file" accept=".musx,application/vnd.makemusic.notation" disabled>
-          <p class="help">You can also drop one MUSX file here.</p>
+          <p class="help">You can also drop a MUSX file here.</p>
         </div>
         <div class="file-summary" id="inputSummary" hidden>
           <strong id="inputName"></strong>
@@ -37,9 +37,9 @@
         <legend>2. Output format</legend>
         <label for="format" class="label">Format</label>
         <select id="format">
-          <option value="musicxml">MusicXML</option>
-          <option value="mnx">MNX</option>
-          <option value="enigmaxml">EnigmaXML</option>
+          <option value="musicxml">MusicXML (uncompressed)</option>
+          <option value="mnx">MNX (experimental)</option>
+          <option value="enigmaxml">EnigmaXML (proprietary Finale XML)</option>
         </select>
       </fieldset>
 
@@ -58,7 +58,7 @@
           <option value="1">Layer 1</option><option value="2">Layer 2</option>
           <option value="3">Layer 3</option><option value="4">Layer 4</option>
         </select>
-        <p class="help">Choose a layer only when Finale cue material needs explicit identification.</p>
+        <p class="help">Choose a layer only if you know that it is used exclusively for cues in this document.</p>
       </fieldset>
 
       <fieldset id="mnxOptions" hidden>
@@ -72,19 +72,19 @@
           <option value="1">Layer 1</option><option value="2">Layer 2</option>
           <option value="3">Layer 3</option><option value="4">Layer 4</option>
         </select>
-        <p class="help">MNX does not currently represent cue material. Denigma reports omitted cues in diagnostics.</p>
+        <p class="help">MNX does not currently represent cues. Denigma reports omitted cues in diagnostics.</p>
       </fieldset>
 
       <fieldset id="enigmaxmlOptions" hidden>
         <legend>3. EnigmaXML options</legend>
-        <p class="help">Denigma has no EnigmaXML export options.</p>
+        <p class="help">EnigmaXML is Finale’s proprietary XML format. Denigma has no EnigmaXML export options.</p>
       </fieldset>
 
       <div class="status-row">
         <p id="status" role="status" aria-live="polite">Loading Denigma WebAssembly…</p>
         <button id="convert" type="button" disabled>Convert</button>
       </div>
-        <p class="help"><span id="version">Loading version…</span> · <a id="reportIssue" href="https://github.com/rpatters1/denigma/issues/new/choose" target="_blank" rel="noreferrer">Report a Denigma issue</a></p>
+        <p class="help"><span id="version">Loading version…</span> · <a id="reportIssue" href="https://github.com/rpatters1/denigma/issues" target="_blank" rel="noreferrer">Report a Denigma issue</a></p>
     </section>
 
     <section class="panel" id="results" aria-labelledby="resultsHeading" hidden>
@@ -100,19 +100,19 @@
         <ul id="diagnostics" class="diagnostic-list" aria-live="polite"></ul>
       </section>
 
-      <p id="failureActions" hidden>Conversion did not complete. Copy the diagnostic report, review it for information you do not want to share, then <a id="failureIssue" href="https://github.com/rpatters1/denigma/issues/new/choose" target="_blank" rel="noreferrer">open a Denigma issue</a>. Your source file is never attached automatically.</p>
+      <p id="failureActions" hidden>Conversion did not complete. Copy the diagnostic report, review it for information you do not want to share, then <a id="failureIssue" href="https://github.com/rpatters1/denigma/issues" target="_blank" rel="noreferrer">open a Denigma issue</a>. Your source file is never attached automatically.</p>
     </section>
 
     <section class="panel" aria-labelledby="aboutHeading">
       <details>
         <summary id="aboutHeading">About, help, and feedback</summary>
         <p>Denigma reads Finale MUSX files and exports MusicXML, MNX, and EnigmaXML. This page is a static application: the server only supplies HTML, JavaScript, CSS, and WebAssembly.</p>
-        <p>For conversion bugs, missing notation, or feature requests, <a id="aboutIssue" href="https://github.com/rpatters1/denigma/issues/new/choose" target="_blank" rel="noreferrer">visit the Denigma issue tracker</a>. Diagnostic reports include versions, selected settings, and Denigma messages, but never the source file contents.</p>
+        <p>For conversion bugs, missing notation, or feature requests, <a id="aboutIssue" href="https://github.com/rpatters1/denigma/issues" target="_blank" rel="noreferrer">visit the Denigma issue tracker</a>. Diagnostic reports include versions, selected settings, and Denigma messages, but never the source file contents.</p>
       </details>
     </section>
   </main>
 
-  <footer>Denigma Web Converter · MIT licensed · No analytics, telemetry, remote fonts, or third-party runtime services.</footer>
+  <footer>Denigma Online · MIT licensed · No analytics, telemetry, remote fonts, or third-party runtime services.</footer>
   <script type="module" src="__APP_URL__"></script>
 </body>
 </html>
