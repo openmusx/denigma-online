@@ -14,6 +14,7 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /Technology preview:/);
   assert.match(html, /review exported files before relying on them/);
   assert.match(html, /entirely in your browser/);
+  assert.match(html, /script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'/);
   assert.match(html, /href="\.\/LICENSE\.txt"/);
   assert.match(html, /MIT License and warranty disclaimer/);
   assert.match(html, /role="status" aria-live="polite"/);
@@ -46,6 +47,7 @@ test('production builds include Apache caching and compressed WASM rules', async
   assert.match(apache, /Content-Encoding "gzip"/);
   assert.match(apache, /Content-Type "application\/wasm"/);
   assert.match(apache, /Content-Security-Policy/);
+  assert.match(apache, /'wasm-unsafe-eval' 'unsafe-eval'/);
 });
 
 test('Emscripten exceptions are enabled before Denigma dependencies are added', async () => {
