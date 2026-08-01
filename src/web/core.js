@@ -51,7 +51,7 @@ export function formatBytes(bytes) {
   return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
 }
 
-export function diagnosticReport({ denigmaVersion, denigmaCommit, buildVersion, format, options, diagnostics }) {
+export function diagnosticReport({ denigmaVersion, denigmaCommit, denigmaOnlineCommit, buildVersion, format, options, diagnostics }) {
   const optionLines = Object.entries(options).map(([key, value]) => `- ${key}: ${String(value)}`);
   const diagnosticLines = diagnostics.length
     ? diagnostics.map((item) => `[${item.severity.toUpperCase()}] ${item.message}`)
@@ -60,6 +60,7 @@ export function diagnosticReport({ denigmaVersion, denigmaCommit, buildVersion, 
     'Denigma Online conversion report',
     `Denigma version: ${denigmaVersion}`,
     `Denigma commit: ${denigmaCommit}`,
+    `Denigma Online commit: ${denigmaOnlineCommit}`,
     `Denigma Online build: ${buildVersion}`,
     `Output format: ${format}`,
     'Options:',

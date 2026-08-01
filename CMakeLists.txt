@@ -8,9 +8,14 @@ endif()
 
 include(FetchContent)
 
+# Emscripten requires exception support at both compile and link time. CMake's
+# language flags are used for every C++ compile and compiler-driver link,
+# including FetchContent dependencies that establish independent directories.
+string(APPEND CMAKE_CXX_FLAGS " -fexceptions")
+
 set(DENIGMA_GIT_REPOSITORY "https://github.com/rpatters1/denigma.git" CACHE STRING
     "Denigma repository used by FetchContent")
-set(DENIGMA_GIT_TAG "cb7c616c47a70228dc096c6e681465021ad59ac1" CACHE STRING
+set(DENIGMA_GIT_TAG "4916d16a5205e5fb389efffdcbd7824c05770cd4" CACHE STRING
     "Pinned Denigma commit, tag, or branch")
 set(DENIGMA_SOURCE_DIR "" CACHE PATH "Optional local Denigma checkout")
 
@@ -41,14 +46,6 @@ if(NOT _denigma_project_line MATCHES "VERSION ([0-9]+\\.[0-9]+\\.[0-9]+)")
 endif()
 set(DENIGMA_ONLINE_DENIGMA_VERSION "${CMAKE_MATCH_1}")
 
-# zlib's configure checks cannot execute while cross-compiling and may miss
-# Emscripten's POSIX-compatible unistd.h, leaving lseek undeclared.
-foreach(_zlib_target IN ITEMS zlib zlibstatic)
-    if(TARGET ${_zlib_target})
-        target_compile_definitions(${_zlib_target} PRIVATE Z_HAVE_UNISTD_H)
-    endif()
-endforeach()
-
 add_executable(denigma_online src/wasm/denigma_online.cpp)
 target_compile_features(denigma_online PRIVATE cxx_std_20)
 target_include_directories(denigma_online PRIVATE "${denigma_SOURCE_DIR}/src")
@@ -68,10 +65,9 @@ set_target_properties(denigma_online PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/wasm"
 )
 
-target_compile_options(denigma_online PRIVATE -Oz -fexceptions -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(denigma_online PRIVATE -Oz -Wall -Wextra -Wpedantic -Werror)
 target_link_options(denigma_online PRIVATE
     -Oz
-    -fexceptions
     "-sMODULARIZE=1"
     "-sEXPORT_ES6=1"
     "-sENVIRONMENT=web,worker,node"
@@ -86,7 +82,7 @@ find_program(NODE_EXECUTABLE node)
 if(NOT NODE_EXECUTABLE)
     message(FATAL_ERROR "Node.js is required to build the static distribution")
 endif()
-add_custom_target(web_dist
+add_custom_target(web_dist ALL
     COMMAND "${NODE_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build-web.mjs"
         "${CMAKE_BINARY_DIR}/wasm/denigma.js"
         "${CMAKE_BINARY_DIR}/wasm/denigma.wasm"

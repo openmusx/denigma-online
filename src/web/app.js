@@ -24,7 +24,16 @@ let outputs = [];
 let objectUrls = [];
 let diagnostics = [];
 let lastConversion;
-let runtime = { denigmaVersion: 'unknown', denigmaCommit: 'unknown', buildVersion: 'unknown' };
+let runtime = {
+  denigmaVersion: 'unknown',
+  denigmaCommit: 'unknown',
+  denigmaOnlineCommit: 'unknown',
+  buildVersion: 'unknown'
+};
+
+function shortCommit(value) {
+  return /^[0-9a-f]{8,}$/i.test(value) ? value.slice(0, 7) : value;
+}
 
 function setStatus(message, kind = 'info') {
   elements.status.textContent = message;
@@ -238,7 +247,7 @@ worker.addEventListener('message', ({ data }) => {
   if (data.type === 'ready') {
     runtime = data;
     wasmReady = true;
-    elements.version.textContent = `Denigma ${data.denigmaVersion} · build ${data.buildVersion}`;
+    elements.version.textContent = `Denigma ${data.denigmaVersion} · commit ${shortCommit(data.denigmaCommit)}`;
     setStatus('Ready. Choose a Finale MUSX file.');
     setBusy(false);
     return;

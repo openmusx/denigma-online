@@ -1,5 +1,11 @@
 {
   "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": true,
+  "cmake.automaticReconfigure": true,
+  "cmake.useCMakePresets": "always",
+  "cmake.loggingLevel": "debug",
+  "cmake.revealLog": "always",
+  "cmake.clearOutputBeforeBuild": true,
   "cmake.sourceDirectory": "${workspaceFolder}",
   "cmake.buildDirectory": "${workspaceFolder}/build-wasm",
   "clangd.arguments": [

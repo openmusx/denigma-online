@@ -44,3 +44,17 @@ After configuration, `WASM: Build site` is the default build task and
 build the site, start the local server, and open `http://127.0.0.1:8080/`. The
 tasks use Node/npm and VS Code's platform-neutral command resolution on Windows,
 macOS, and Linux.
+
+The setup command also detects the active Emscripten installation and generates
+an ignored local `CMakeUserPresets.json`. CMake Tools' **Build** button then uses
+that preset to build the `web_dist` target as `MinSizeRel`; no compiler kit is
+needed. The ignored, machine-local preset records the `PATH` from the shell that
+runs `setup:vscode`; no machine-specific paths are committed. Rerun
+`npm run setup:vscode:force` from a shell where `npm run doctor` succeeds after
+changing tool installations.
+
+Saving `CMakeLists.txt` or another CMake file immediately reconfigures
+`build-wasm` with the Emscripten preset. Opening the workspace does not configure
+automatically. Configure and build operations reveal the CMake output channel
+without stealing focus from selection prompts. Build operations clear previous
+output when they start.
