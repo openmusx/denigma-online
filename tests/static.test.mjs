@@ -37,6 +37,17 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });
 
+test('production builds include Apache caching and compressed WASM rules', async () => {
+  const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
+  const apache = await readFile(new URL('../deploy/apache.htaccess', import.meta.url), 'utf8');
+
+  assert.match(build, /apache\.htaccess.*\.htaccess/);
+  assert.match(apache, /max-age=31536000, immutable/);
+  assert.match(apache, /Content-Encoding "gzip"/);
+  assert.match(apache, /Content-Type "application\/wasm"/);
+  assert.match(apache, /Content-Security-Policy/);
+});
+
 test('Emscripten exceptions are enabled before Denigma dependencies are added', async () => {
   const cmake = await readFile(new URL('../CMakeLists.txt', import.meta.url), 'utf8');
   const exceptions = cmake.indexOf('string(APPEND CMAKE_CXX_FLAGS " -fexceptions")');

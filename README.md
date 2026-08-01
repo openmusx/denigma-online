@@ -162,7 +162,9 @@ exporters.
 
 Copy the contents of `dist/` to any static HTTP server. WebAssembly modules and
 module workers require HTTP(S); opening `index.html` directly with a `file:` URL
-is not supported.
+is not supported. The build includes `dist/.htaccess` with the recommended
+Apache/cPanel caching, precompressed WASM, MIME type, and security-header rules.
+Make sure hidden files are included when copying or uploading `dist/`.
 
 Recommended response headers:
 
@@ -186,9 +188,10 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'
 ```
 
-An nginx example is included at `deploy/nginx.conf.example`; it enables
-`gzip_static` for the generated WASM sidecar. The HTML also has a matching CSP
-meta tag, but an HTTP header is preferable in production.
+The tracked Apache source is `deploy/apache.htaccess`. An nginx example is
+included at `deploy/nginx.conf.example`; it enables `gzip_static` for the
+generated WASM sidecar. The HTML also has a matching CSP meta tag, but an HTTP
+header is preferable in production.
 
 Do not enable request-body upload handlers for this location. The application
 only performs normal `GET` requests for its own static assets.

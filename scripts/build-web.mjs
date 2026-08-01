@@ -76,6 +76,7 @@ let html = await readFile(join(source, 'index.html'), 'utf8');
 html = html.replace('__STYLES_URL__', stylesUrl).replace('__APP_URL__', appUrl);
 await writeFile(join(dist, 'index.html'), html);
 await cp(join(root, 'LICENSE'), join(dist, 'LICENSE.txt'));
+await cp(join(root, 'deploy', 'apache.htaccess'), join(dist, '.htaccess'));
 await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   buildVersion,
   denigmaOnlineCommit,
