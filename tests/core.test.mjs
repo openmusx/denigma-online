@@ -50,11 +50,13 @@ test('diagnostic reports contain reproducibility data and privacy notice', () =>
   const report = diagnosticReport({
     denigmaVersion: '4.0.0',
     denigmaCommit: 'abc123',
-    buildVersion: 'web456',
+    buildVersion: 'online456',
     format: 'MNX',
     options: { tempo: true },
     diagnostics: [{ severity: 'warning', message: 'Test warning' }]
   });
+  assert.match(report, /Denigma Online conversion report/);
+  assert.match(report, /Denigma Online build: online456/);
   assert.match(report, /Denigma version: 4\.0\.0/);
   assert.match(report, /\[WARNING\] Test warning/);
   assert.match(report, /Source file contents are not included/);

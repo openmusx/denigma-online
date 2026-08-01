@@ -39,7 +39,7 @@ file(STRINGS "${denigma_SOURCE_DIR}/CMakeLists.txt" _denigma_project_line
 if(NOT _denigma_project_line MATCHES "VERSION ([0-9]+\\.[0-9]+\\.[0-9]+)")
     message(FATAL_ERROR "Unable to determine the Denigma version")
 endif()
-set(DENIGMA_WEB_DENIGMA_VERSION "${CMAKE_MATCH_1}")
+set(DENIGMA_ONLINE_DENIGMA_VERSION "${CMAKE_MATCH_1}")
 
 # zlib's configure checks cannot execute while cross-compiling and may miss
 # Emscripten's POSIX-compatible unistd.h, leaving lseek undeclared.
@@ -49,27 +49,27 @@ foreach(_zlib_target IN ITEMS zlib zlibstatic)
     endif()
 endforeach()
 
-add_executable(denigma_web src/wasm/denigma_web.cpp)
-target_compile_features(denigma_web PRIVATE cxx_std_20)
-target_include_directories(denigma_web PRIVATE "${denigma_SOURCE_DIR}/src")
-target_compile_definitions(denigma_web PRIVATE
+add_executable(denigma_online src/wasm/denigma_online.cpp)
+target_compile_features(denigma_online PRIVATE cxx_std_20)
+target_include_directories(denigma_online PRIVATE "${denigma_SOURCE_DIR}/src")
+target_compile_definitions(denigma_online PRIVATE
     DENIGMA_NAME="denigma"
-    DENIGMA_VERSION="${DENIGMA_WEB_DENIGMA_VERSION}"
+    DENIGMA_VERSION="${DENIGMA_ONLINE_DENIGMA_VERSION}"
 )
-target_link_libraries(denigma_web PRIVATE
+target_link_libraries(denigma_online PRIVATE
     denigma::enigmaxml
     denigma::mnx
     denigma::musicxml
 )
 
-set_target_properties(denigma_web PROPERTIES
+set_target_properties(denigma_online PROPERTIES
     OUTPUT_NAME denigma
     SUFFIX ".js"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/wasm"
 )
 
-target_compile_options(denigma_web PRIVATE -Oz -fexceptions -Wall -Wextra -Wpedantic -Werror)
-target_link_options(denigma_web PRIVATE
+target_compile_options(denigma_online PRIVATE -Oz -fexceptions -Wall -Wextra -Wpedantic -Werror)
+target_link_options(denigma_online PRIVATE
     -Oz
     -fexceptions
     "-sMODULARIZE=1"
@@ -90,7 +90,7 @@ add_custom_target(web_dist
     COMMAND "${NODE_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build-web.mjs"
         "${CMAKE_BINARY_DIR}/wasm/denigma.js"
         "${CMAKE_BINARY_DIR}/wasm/denigma.wasm"
-    DEPENDS denigma_web
+    DEPENDS denigma_online
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Building content-hashed static site"
     VERBATIM

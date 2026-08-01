@@ -1,4 +1,4 @@
-# Denigma Web Converter
+# Denigma Online
 
 A small static website that converts Finale `.musx` files to MusicXML, MNX, or
 EnigmaXML with Denigma WebAssembly. Conversion runs in a Web Worker and all
@@ -190,7 +190,7 @@ The selected MUSX bytes are transferred from the page to a same-origin Web
 Worker and copied into WebAssembly memory. Generated files return to the page as
 local `Blob` objects. No source or output bytes are sent over the network.
 
-The diagnostic report contains the Denigma and web build versions, output
+The diagnostic report contains the Denigma and Denigma Online build versions, output
 format, settings, and Denigma messages. It never embeds source file contents.
 Users can review the copied text before putting it in an issue.
 
@@ -214,8 +214,8 @@ No directory handles are persisted by the application.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.cc4da2a411f7.wasm:    4,503,081 bytes (4.29 MiB)
-denigma.cc4da2a411f7.wasm.gz: 1,327,489 bytes (1.27 MiB)
+denigma.d45ccdf7148f.wasm:    4,503,106 bytes (4.29 MiB)
+denigma.d45ccdf7148f.wasm.gz: 1,327,396 bytes (1.27 MiB)
 ```
 
 This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at

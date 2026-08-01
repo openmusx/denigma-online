@@ -10,7 +10,7 @@ import {
   uniquifyFileNames
 } from '__CORE_MODULE_URL__';
 
-const ISSUE_URL = 'https://github.com/rpatters1/denigma/issues/new/choose';
+const ISSUE_URL = 'https://github.com/rpatters1/denigma/issues';
 const worker = new Worker(new URL('__WORKER_MODULE_URL__', import.meta.url), { type: 'module' });
 const elements = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), (element) => [element.id, element]));
 
