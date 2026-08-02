@@ -63,9 +63,13 @@ const workerUrl = await emit('worker', 'js', workerSource);
 const coreSource = await readFile(join(source, 'core.js'));
 const coreUrl = await emit('core', 'js', coreSource);
 
+const zipSource = await readFile(join(source, 'zip.js'));
+const zipUrl = await emit('zip', 'js', zipSource);
+
 let appSource = await readFile(join(source, 'app.js'), 'utf8');
 appSource = appSource
   .replace('__CORE_MODULE_URL__', coreUrl.replace('./assets/', './'))
+  .replace('__ZIP_MODULE_URL__', zipUrl.replace('./assets/', './'))
   .replace('__WORKER_MODULE_URL__', workerUrl.replace('./assets/', './'));
 const appUrl = await emit('app', 'js', appSource);
 
@@ -84,6 +88,7 @@ await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   module: moduleUrl,
   worker: workerUrl,
   core: coreUrl,
+  zip: zipUrl,
   app: appUrl,
   styles: stylesUrl,
   wasmBytes: wasm.byteLength,
