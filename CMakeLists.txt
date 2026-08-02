@@ -15,7 +15,7 @@ string(APPEND CMAKE_CXX_FLAGS " -fexceptions")
 
 set(DENIGMA_GIT_REPOSITORY "https://github.com/rpatters1/denigma.git" CACHE STRING
     "Denigma repository used by FetchContent")
-set(DENIGMA_GIT_TAG "4916d16a5205e5fb389efffdcbd7824c05770cd4" CACHE STRING
+set(DENIGMA_GIT_TAG "3262873f6d405b562cea1c9fa030e8742ded6712" CACHE STRING
     "Pinned Denigma commit, tag, or branch")
 set(DENIGMA_SOURCE_DIR "" CACHE PATH "Optional local Denigma checkout")
 
