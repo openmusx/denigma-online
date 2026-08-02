@@ -27,6 +27,25 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.doesNotMatch(html, /https:\/\/(?!github\.com)/);
 });
 
+test('outputs download from real links so picker-less browsers keep working', async () => {
+  const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  assert.match(html, /id="saveAll"[^>]*>Save all to folder…</);
+  assert.match(html, /id="downloadZip"[^>]*>Download \.zip</);
+  assert.match(app, /link\.download = output\.name/);
+  assert.match(app, /canPickSaveFile = 'showSaveFilePicker' in window/);
+  assert.match(app, /canPickDirectory = 'showDirectoryPicker' in window/);
+  assert.match(app, /elements\.saveAll\.hidden = !canPickDirectory/);
+  assert.match(app, /elements\.downloadZip\.hidden = !canZip/);
+
+  // The picker paths must never quietly manufacture a download; that mismatch is
+  // what the visible filename links replaced.
+  const saveOutput = app.slice(app.indexOf('async function saveOutput'), app.indexOf('function renderOutputs'));
+  const saveAll = app.slice(app.indexOf('elements.saveAll.addEventListener'), app.indexOf('elements.copyReport.addEventListener'));
+  assert.doesNotMatch(saveOutput, /createElement/);
+  assert.doesNotMatch(saveAll, /createElement/);
+});
+
 test('worker owns WASM conversion so the UI thread stays responsive', async () => {
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');

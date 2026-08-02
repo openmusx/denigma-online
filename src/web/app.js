@@ -3,14 +3,20 @@
 
 import {
   FORMATS,
+  baseName,
   diagnosticReport,
   formatBytes,
   isMusxFile,
   outputFileName,
+  safeNamePart,
   uniquifyFileNames
 } from '__CORE_MODULE_URL__';
+import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
 
 const ISSUE_URL = 'https://github.com/rpatters1/denigma/issues';
+const canPickSaveFile = 'showSaveFilePicker' in window;
+const canPickDirectory = 'showDirectoryPicker' in window;
+const canZip = supportsCompression();
 const worker = new Worker(new URL('__WORKER_MODULE_URL__', import.meta.url), { type: 'module' });
 const elements = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), (element) => [element.id, element]));
 
@@ -152,27 +158,21 @@ function reportOptions(options) {
 }
 
 async function saveOutput(output) {
-  if ('showSaveFilePicker' in window) {
-    try {
-      const format = selectedFormat();
-      const handle = await window.showSaveFilePicker({
-        id: `denigma-${elements.format.value}`,
-        suggestedName: output.name,
-        types: [{ description: format.label, accept: { [format.mime]: [`.${format.extension}`] } }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(output.blob);
-      await writable.close();
-      return;
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
-      setStatus(`Could not use the save picker; starting a browser download instead. ${error.message || error}`, 'warning');
-    }
+  try {
+    const format = selectedFormat();
+    const handle = await window.showSaveFilePicker({
+      id: `denigma-${elements.format.value}`,
+      suggestedName: output.name,
+      types: [{ description: format.label, accept: { [format.mime]: [`.${format.extension}`] } }]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(output.blob);
+    await writable.close();
+    setStatus(`Saved ${output.name}.`, 'success');
+  } catch (error) {
+    if (error?.name === 'AbortError') return;
+    setStatus(`Could not save ${output.name}: ${error.message || error}`, 'warning');
   }
-  const anchor = document.createElement('a');
-  anchor.href = output.url;
-  anchor.download = output.name;
-  anchor.click();
 }
 
 function renderOutputs(rawOutputs) {
@@ -194,18 +194,25 @@ function renderOutputs(rawOutputs) {
   outputs.forEach((output) => {
     const item = document.createElement('li');
     const info = document.createElement('span');
-    const name = document.createElement('strong');
-    name.textContent = output.name;
-    info.append(name, document.createTextNode(` · ${formatBytes(output.data.byteLength)}`));
-    const save = document.createElement('button');
-    save.type = 'button';
-    save.className = 'secondary small';
-    save.textContent = 'Save';
-    save.addEventListener('click', () => saveOutput(output));
-    item.append(info, save);
+    const link = document.createElement('a');
+    link.className = 'output-name';
+    link.href = output.url;
+    link.download = output.name;
+    link.textContent = output.name;
+    info.append(link, document.createTextNode(` · ${formatBytes(output.data.byteLength)}`));
+    item.append(info);
+    if (canPickSaveFile) {
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.className = 'secondary small';
+      save.textContent = 'Save as…';
+      save.addEventListener('click', () => saveOutput(output));
+      item.append(save);
+    }
     elements.outputList.append(item);
   });
-  elements.saveAll.hidden = outputs.length < 2;
+  elements.downloadZip.hidden = !canZip || outputs.length < 2;
+  elements.saveAll.hidden = !canPickDirectory || outputs.length < 2;
 }
 
 async function loadFile(file) {
@@ -342,27 +349,41 @@ elements.convert.addEventListener('click', () => {
   worker.postMessage({ type: 'convert', requestId: pendingRequest, options });
 });
 
-elements.saveAll.addEventListener('click', async () => {
-  if ('showDirectoryPicker' in window) {
-    try {
-      const directory = await window.showDirectoryPicker({ id: 'denigma-outputs', mode: 'readwrite' });
-      for (const output of outputs) {
-        const handle = await directory.getFileHandle(output.name, { create: true });
-        const writable = await handle.createWritable();
-        await writable.write(output.blob);
-        await writable.close();
-      }
-      return;
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
-      setStatus(`Could not save to that folder; starting browser downloads instead. ${error.message || error}`, 'warning');
-    }
+elements.downloadZip.addEventListener('click', async () => {
+  elements.downloadZip.disabled = true;
+  setStatus('Preparing archive…');
+  try {
+    const name = `${safeNamePart(baseName(inputFile.name))}.zip`;
+    const blob = await createZipBlob(outputs.map((output) => ({ name: output.name, data: output.data })));
+    const url = URL.createObjectURL(blob);
+    objectUrls.push(url);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setStatus(`Downloaded ${name} (${formatBytes(blob.size)}).`, 'success');
+  } catch (error) {
+    setStatus(`Could not build the archive: ${error.message || error}`, 'warning');
+  } finally {
+    elements.downloadZip.disabled = false;
   }
-  for (const output of outputs) {
-    const anchor = document.createElement('a');
-    anchor.href = output.url;
-    anchor.download = output.name;
-    anchor.click();
+});
+
+elements.saveAll.addEventListener('click', async () => {
+  let saved = 0;
+  try {
+    const directory = await window.showDirectoryPicker({ id: 'denigma-outputs', mode: 'readwrite' });
+    for (const output of outputs) {
+      const handle = await directory.getFileHandle(output.name, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(output.blob);
+      await writable.close();
+      saved += 1;
+    }
+    setStatus(`Saved ${saved} files.`, 'success');
+  } catch (error) {
+    if (error?.name === 'AbortError') return;
+    setStatus(`Saved ${saved} of ${outputs.length} files; ${error.message || error}`, 'warning');
   }
 });
 
