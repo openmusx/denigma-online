@@ -91,6 +91,9 @@ select, input[type="number"] {
 .check-row { align-items: start; display: flex; gap: .55rem; margin: .45rem 0; }
 .check-row input { margin-top: .3rem; }
 .documents { border-left: 3px solid var(--border); padding-left: .9rem; }
+.documents-heading { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
+.documents-heading .label { margin: 0; }
+.document-actions { display: flex; gap: .35rem; }
 .help { font-size: .9rem; margin: .35rem 0; }
 
 button, .button-link {

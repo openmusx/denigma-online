@@ -9,7 +9,8 @@ import {
   isMusxFile,
   outputFileName,
   safeNamePart,
-  uniquifyFileNames
+  uniquifyFileNames,
+  visibleDiagnostics
 } from '__CORE_MODULE_URL__';
 import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
 
@@ -98,26 +99,41 @@ function makePartControl(part) {
   input.name = 'document';
   input.value = String(part.outputIndex);
   input.checked = true;
-  input.addEventListener('change', () => setBusy(busy));
   const text = document.createElement('span');
   text.textContent = part.name;
   label.append(input, text);
   return label;
 }
 
+function updateDocumentControls() {
+  const inputs = Array.from(elements.documents.querySelectorAll('input[name="document"]'));
+  elements.selectAllDocuments.disabled = inputs.every((input) => input.checked);
+  elements.selectNoDocuments.disabled = inputs.every((input) => !input.checked);
+}
+
+function setDocumentSelection(checked) {
+  for (const input of elements.documents.querySelectorAll('input[name="document"]')) {
+    input.checked = checked;
+  }
+  updateDocumentControls();
+  setBusy(busy);
+}
+
 function renderParts() {
   elements.linkedParts.replaceChildren(...parts.map(makePartControl));
   elements.noParts.hidden = parts.length !== 0;
+  updateDocumentControls();
 }
 
 function renderDiagnostics(items) {
+  const visibleItems = visibleDiagnostics(items);
   elements.diagnostics.replaceChildren();
-  if (!items.length) {
+  if (!visibleItems.length) {
     elements.diagnosticsSection.hidden = true;
     return;
   }
   elements.diagnosticsSection.hidden = false;
-  for (const item of items) {
+  for (const item of visibleItems) {
     const row = document.createElement('li');
     row.className = `diagnostic diagnostic-${item.severity}`;
     const severity = document.createElement('strong');
@@ -216,6 +232,7 @@ function renderOutputs(rawOutputs) {
 }
 
 async function loadFile(file) {
+  elements.scoreName.textContent = 'Score';
   if (!isMusxFile(file)) {
     clearOutputs();
     inputFile = undefined;
@@ -278,6 +295,7 @@ worker.addEventListener('message', ({ data }) => {
       handleFailure('The selected file could not be read as a Finale MUSX file.', data.diagnostics);
       return;
     }
+    elements.scoreName.textContent = data.scoreName || 'Score';
     parts = data.parts;
     renderParts();
     renderDiagnostics(diagnostics);
@@ -334,6 +352,14 @@ elements.format.addEventListener('change', () => {
   clearOutputs();
   showFormatOptions();
 });
+
+elements.documents.addEventListener('change', ({ target }) => {
+  if (!target.matches('input[name="document"]')) return;
+  updateDocumentControls();
+  setBusy(busy);
+});
+elements.selectAllDocuments.addEventListener('click', () => setDocumentSelection(true));
+elements.selectNoDocuments.addEventListener('click', () => setDocumentSelection(false));
 
 elements.convert.addEventListener('click', () => {
   clearOutputs();

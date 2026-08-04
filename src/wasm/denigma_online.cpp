@@ -44,6 +44,7 @@ struct PartInfo
 struct OnlineResult
 {
     bool success{ true };
+    std::string scoreName{ "Score" };
     std::vector<denigma::Diagnostic> diagnostics;
     std::vector<PartInfo> parts;
     std::vector<OutputFile> outputs;
@@ -59,6 +60,7 @@ denigma::CommonOptions makeCommonOptions(OnlineResult& result, const char* sourc
 {
     denigma::CommonOptions options;
     options.sourceName = sourceName ? sourceName : "browser.musx";
+    options.verbose = true;
     options.logCallback = [&result](denigma::MessageSeverity severity, std::string_view message) {
         addDiagnostic(result, severity, std::string(message));
     };
@@ -111,6 +113,7 @@ void inspectMusx(OnlineResult& result, std::span<const std::byte> bytes, const c
     denigma::BufferRandomAccessReader reader(bytes);
     denigma::DenigmaContext context(DENIGMA_NAME);
     context.inputFilePath = sourceName ? sourceName : "browser.musx";
+    context.verbose = true;
     context.logCallback = [&result](denigma::MessageSeverity severity, std::string_view message) {
         addDiagnostic(result, severity, std::string(message));
     };
@@ -122,6 +125,10 @@ void inspectMusx(OnlineResult& result, std::span<const std::byte> bytes, const c
     int outputIndex = 1; // MusicXML callback zero is the score.
     for (const auto& part : parts) {
         if (part->isScore()) {
+            auto name = part->getName(musx::util::EnigmaString::AccidentalStyle::Unicode);
+            if (!name.empty()) {
+                result.scoreName = std::move(name);
+            }
             continue;
         }
         auto name = part->getName(musx::util::EnigmaString::AccidentalStyle::Unicode);
@@ -288,6 +295,11 @@ const char* denigma_result_diagnostic_message(const OnlineResult* result, std::s
 {
     const auto* item = result ? itemAt(result->diagnostics, index) : nullptr;
     return item ? item->message.c_str() : "";
+}
+
+const char* denigma_result_score_name(const OnlineResult* result)
+{
+    return result ? result->scoreName.c_str() : "Score";
 }
 
 std::size_t denigma_result_part_count(const OnlineResult* result) { return result ? result->parts.size() : 0; }

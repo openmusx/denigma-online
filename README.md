@@ -66,8 +66,8 @@ that shell.
 
 ## Build
 
-The default build pins Denigma commit
-`4916d16a5205e5fb389efffdcbd7824c05770cd4` (Denigma 4.0.0).
+The default build uses the Denigma revision pinned by `DENIGMA_GIT_TAG` in
+`CMakeLists.txt`.
 
 ```sh
 emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel
@@ -205,8 +205,9 @@ Worker and copied into WebAssembly memory. Generated files return to the page as
 local `Blob` objects. No source or output bytes are sent over the network.
 
 The diagnostic report contains the Denigma version and commit, the Denigma
-Online commit and build hash, output format, settings, and Denigma messages. It
-never embeds source file contents.
+Online commit and build hash, output format, settings, and Denigma messages.
+Verbose messages are always included in the report but kept out of the
+on-screen diagnostic list. The report never embeds source file contents.
 Users can review the copied text before putting it in an issue.
 
 ## Browser support
@@ -229,12 +230,12 @@ No directory handles are persisted by the application.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.d45e7b04d93f.wasm:    5,429,989 bytes (5.18 MiB)
-denigma.d45e7b04d93f.wasm.gz: 1,455,149 bytes (1.39 MiB)
+denigma.64212e38d843.wasm:    5,461,413 bytes (5.21 MiB)
+denigma.64212e38d843.wasm.gz: 1,460,141 bytes (1.39 MiB)
 ```
 
 This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at
-the pinned Denigma commit. The single binary
+the configured Denigma revision. The single binary
 shares Denigma, MUSX parsing, XML, compression, and exporter dependencies and is
 cached under a content-hashed immutable URL. C++ exception catching is enabled
 across Denigma and all linked dependencies so conversion failures can be
@@ -247,7 +248,7 @@ reported without terminating the WebAssembly runtime.
 3. Configure a clean `build-wasm` directory and build `web_dist`.
 4. Run `npm test` and test all three formats with a MUSX containing linked
    parts, warnings, and playback tempo changes.
-5. Record the new commit and WASM byte size in this README.
+5. Record the new WASM byte size in this README.
 6. Deploy the complete new `dist/` directory. Old hashed assets may be removed
    after the old HTML cache has expired.
 

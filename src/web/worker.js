@@ -63,7 +63,13 @@ function readResult(resultPointer, includeOutputs) {
   }
 
   return {
-    value: { success: Module._denigma_result_success(resultPointer) === 1, diagnostics, parts, outputs },
+    value: {
+      success: Module._denigma_result_success(resultPointer) === 1,
+      scoreName: stringAt(Module._denigma_result_score_name(resultPointer)),
+      diagnostics,
+      parts,
+      outputs
+    },
     transfers
   };
 }

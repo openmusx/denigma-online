@@ -10,7 +10,8 @@ import {
   isMusxFile,
   outputFileName,
   safeNamePart,
-  uniquifyFileNames
+  uniquifyFileNames,
+  visibleDiagnostics
 } from '../src/web/core.js';
 import { versionAtLeast } from '../scripts/tooling.mjs';
 
@@ -54,14 +55,27 @@ test('diagnostic reports contain reproducibility data and privacy notice', () =>
     buildVersion: 'online456',
     format: 'MNX',
     options: { tempo: true },
-    diagnostics: [{ severity: 'warning', message: 'Test warning' }]
+    diagnostics: [
+      { severity: 'warning', message: 'Test warning' },
+      { severity: 'verbose', message: 'Report-only detail' }
+    ]
   });
   assert.match(report, /Denigma Online conversion report/);
   assert.match(report, /Denigma Online commit: def456/);
   assert.match(report, /Denigma Online build: online456/);
   assert.match(report, /Denigma version: 4\.0\.0/);
   assert.match(report, /\[WARNING\] Test warning/);
+  assert.match(report, /\[VERBOSE\] Report-only detail/);
   assert.match(report, /Source file contents are not included/);
+});
+
+test('verbose diagnostics are excluded from the on-screen diagnostic list', () => {
+  const diagnostics = [
+    { severity: 'info', message: 'Visible information' },
+    { severity: 'verbose', message: 'Report-only detail' },
+    { severity: 'warning', message: 'Visible warning' }
+  ];
+  assert.deepEqual(visibleDiagnostics(diagnostics), [diagnostics[0], diagnostics[2]]);
 });
 
 test('tool version checks compare semantic numeric components', () => {

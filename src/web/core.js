@@ -51,6 +51,10 @@ export function formatBytes(bytes) {
   return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
 }
 
+export function visibleDiagnostics(diagnostics) {
+  return diagnostics.filter((item) => item.severity !== 'verbose');
+}
+
 export function diagnosticReport({ denigmaVersion, denigmaCommit, denigmaOnlineCommit, buildVersion, format, options, diagnostics }) {
   const optionLines = Object.entries(options).map(([key, value]) => `- ${key}: ${String(value)}`);
   const diagnosticLines = diagnostics.length

@@ -49,8 +49,14 @@
       <fieldset id="musicxmlOptions">
         <legend>3. MusicXML options</legend>
         <div id="documents" class="documents">
-          <span class="label">Documents to export</span>
-          <label class="check-row"><input type="checkbox" name="document" value="0" checked> <span>Score</span></label>
+          <div class="documents-heading">
+            <span class="label">Documents to export</span>
+            <span class="document-actions">
+              <button id="selectAllDocuments" type="button" class="secondary small" disabled>Select all</button>
+              <button id="selectNoDocuments" type="button" class="secondary small">Select none</button>
+            </span>
+          </div>
+          <label class="check-row"><input type="checkbox" name="document" value="0" checked> <span id="scoreName">Score</span></label>
           <div id="linkedParts"></div>
           <p id="noParts" class="help">No linked parts found in this file.</p>
         </div>
