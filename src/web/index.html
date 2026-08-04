@@ -113,7 +113,10 @@
             <p class="preview-guidance"><strong>Looks wrong?</strong> Open the downloaded MusicXML in your music app before reporting a problem.</p>
             <p id="previewStatus" class="help" role="status" aria-live="polite"></p>
           </div>
-          <button id="closePreview" type="button" class="secondary small">Close preview</button>
+          <div class="preview-actions">
+            <button id="printPreview" type="button" class="secondary small" disabled>Print…</button>
+            <button id="closePreview" type="button" class="secondary small">Close preview</button>
+          </div>
         </div>
         <p id="previewError" class="input-error" role="alert" hidden></p>
         <div id="previewCanvas" class="preview-canvas" tabindex="0" aria-label="Scrollable score preview"></div>

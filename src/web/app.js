@@ -95,7 +95,23 @@ function clearPreview() {
   elements.previewStatus.textContent = '';
   elements.previewError.textContent = '';
   elements.previewError.hidden = true;
+  elements.printPreview.disabled = true;
   elements.previewSection.hidden = true;
+}
+
+function addPrintPageRule(pageSize) {
+  const width = Number(pageSize?.widthMm);
+  const height = Number(pageSize?.heightMm);
+  if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return () => {};
+  try {
+    const sheet = Array.from(document.styleSheets).find((candidate) => candidate.href?.startsWith(location.origin));
+    if (!sheet) return () => {};
+    const index = sheet.cssRules.length;
+    sheet.insertRule(`@page { size: ${width}mm ${height}mm; margin: 0; }`, index);
+    return () => sheet.deleteRule(index);
+  } catch {
+    return () => {};
+  }
 }
 
 function clearOutputs() {
@@ -240,6 +256,7 @@ async function previewOutput(output, button) {
       return;
     }
     activePreview = preview;
+    elements.printPreview.disabled = false;
     elements.previewStatus.textContent = 'Preview ready.';
     elements.previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
@@ -523,6 +540,12 @@ elements.copyReport.addEventListener('click', async () => {
 });
 
 elements.closePreview.addEventListener('click', clearPreview);
+elements.printPreview.addEventListener('click', () => {
+  if (!activePreview) return;
+  const removePageRule = addPrintPageRule(activePreview.pageSize);
+  window.addEventListener('afterprint', removePageRule, { once: true });
+  window.print();
+});
 
 elements.reportIssue.href = ISSUE_URL;
 elements.failureIssue.href = ISSUE_URL;

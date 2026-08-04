@@ -87,6 +87,9 @@ function exerciseEnigmaXmlInput(bytes, name, label) {
           || Module._denigma_result_score_spatium_mm(inspection) <= 0) {
         throw new Error(`${label} inspection returned no score page metrics`);
       }
+      if (Module._denigma_result_score_has_page_margins(inspection) !== 1) {
+        throw new Error(`${label} inspection returned no score page margins`);
+      }
     } finally {
       Module._denigma_result_destroy(inspection);
     }
@@ -122,6 +125,18 @@ try {
     if (scoreWidth <= 0 || scoreHeight <= 0 || scoreSpatium <= 0) {
       throw new Error('Inspection returned no score page metrics');
     }
+    if (Module._denigma_result_score_has_page_margins(inspection) !== 1) {
+      throw new Error('Inspection returned no score page margins');
+    }
+    const scoreMargins = [
+      Module._denigma_result_score_page_margin_top_sp(inspection),
+      Module._denigma_result_score_page_margin_bottom_sp(inspection),
+      Module._denigma_result_score_page_margin_left_sp(inspection),
+      Module._denigma_result_score_page_margin_right_sp(inspection)
+    ];
+    if (scoreMargins.some((value) => !Number.isFinite(value) || value < 0)) {
+      throw new Error(`Inspection returned invalid score page margins: ${scoreMargins}`);
+    }
     const partCount = Module._denigma_result_part_count(inspection);
     if (partCount) {
       firstPartOutputIndex = Module._denigma_result_part_output_index(inspection, 0);
@@ -129,6 +144,9 @@ try {
           || Module._denigma_result_part_page_height_mm(inspection, 0) <= 0
           || Module._denigma_result_part_spatium_mm(inspection, 0) <= 0) {
         throw new Error('Inspection returned no linked-part page metrics');
+      }
+      if (Module._denigma_result_part_has_page_margins(inspection, 0) !== 1) {
+        throw new Error('Inspection returned no linked-part page margins');
       }
     }
     console.log(`Inspection: ${scoreName}, ${partCount} linked parts, ${scoreWidth.toFixed(1)} × ${scoreHeight.toFixed(1)} mm, ${scoreSpatium.toFixed(2)} mm spatium`);
