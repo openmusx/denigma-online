@@ -15,7 +15,7 @@ string(APPEND CMAKE_CXX_FLAGS " -fexceptions")
 
 set(DENIGMA_GIT_REPOSITORY "https://github.com/rpatters1/denigma.git" CACHE STRING
     "Denigma repository used by FetchContent")
-set(DENIGMA_GIT_TAG "3262873f6d405b562cea1c9fa030e8742ded6712" CACHE STRING
+set(DENIGMA_GIT_TAG "7e95231eb7ad7972ae56325a804fa21ff7db03ce" CACHE STRING
     "Pinned Denigma commit, tag, or branch")
 set(DENIGMA_SOURCE_DIR "" CACHE PATH "Optional local Denigma checkout")
 
@@ -74,7 +74,7 @@ target_link_options(denigma_online PRIVATE
     "-sALLOW_MEMORY_GROWTH=1"
     "-sFILESYSTEM=0"
     "-sASSERTIONS=0"
-    "-sEXPORTED_FUNCTIONS=['_denigma_malloc','_denigma_free','_denigma_inspect','_denigma_convert','_denigma_result_destroy','_denigma_result_success','_denigma_result_diagnostic_count','_denigma_result_diagnostic_severity','_denigma_result_diagnostic_message','_denigma_result_part_count','_denigma_result_part_id','_denigma_result_part_name','_denigma_result_part_output_index','_denigma_result_output_count','_denigma_result_output_name','_denigma_result_output_data','_denigma_result_output_size','_denigma_version','_denigma_commit']"
+    "-sEXPORTED_FUNCTIONS=['_denigma_malloc','_denigma_free','_denigma_inspect','_denigma_convert','_denigma_result_destroy','_denigma_result_success','_denigma_result_diagnostic_count','_denigma_result_diagnostic_severity','_denigma_result_diagnostic_message','_denigma_result_score_name','_denigma_result_part_count','_denigma_result_part_id','_denigma_result_part_name','_denigma_result_part_output_index','_denigma_result_output_count','_denigma_result_output_name','_denigma_result_output_data','_denigma_result_output_size','_denigma_version','_denigma_commit']"
     "-sEXPORTED_RUNTIME_METHODS=['HEAPU8','UTF8ToString']"
 )
 

@@ -22,9 +22,22 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /MusicXML \(uncompressed\)/);
   assert.match(html, /MNX \(experimental\)/);
   assert.match(html, /EnigmaXML \(proprietary Finale XML\)/);
+  assert.doesNotMatch(html, /id="verboseLogging"/);
+  assert.match(html, /id="selectAllDocuments"[^>]*>Select all</);
+  assert.match(html, /id="selectNoDocuments"[^>]*>Select none</);
+  assert.match(html, /id="scoreName">Score</);
   assert.match(html, /github\.com\/rpatters1\/denigma\/issues/g);
   assert.doesNotMatch(html, /issues\/new/);
   assert.doesNotMatch(html, /https:\/\/(?!github\.com)/);
+});
+
+test('MusicXML documents can be selected or cleared as a group', async () => {
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  assert.match(app, /function setDocumentSelection\(checked\)/);
+  assert.match(app, /input\.checked = checked/);
+  assert.match(app, /selectAllDocuments\.addEventListener\('click', \(\) => setDocumentSelection\(true\)\)/);
+  assert.match(app, /selectNoDocuments\.addEventListener\('click', \(\) => setDocumentSelection\(false\)\)/);
+  assert.match(app, /documents\.addEventListener\('change'/);
 });
 
 test('outputs download from real links so picker-less browsers keep working', async () => {
@@ -53,6 +66,7 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.match(app, /github\.com\/rpatters1\/denigma\/issues'/);
   assert.doesNotMatch(app, /issues\/new/);
   assert.match(worker, /_denigma_convert/);
+  assert.match(worker, /_denigma_result_score_name/);
   assert.match(worker, /denigmaOnlineCommit: '__DENIGMA_ONLINE_COMMIT__'/);
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });

@@ -26,8 +26,8 @@ three format headers:
   `MultiOutputCallback` once for the score and/or each linked part.
 - `ConversionResult` contains typed diagnostics and marks error severity.
 - `CommonOptions::logCallback` receives info, warning, error, and verbose
-  messages; the website captures all severities so no Denigma messages are
-  silently discarded.
+  messages. Verbose messages are always captured for diagnostic reports but
+  filtered out of the on-screen diagnostic list.
 
 Existing meaningful options are:
 

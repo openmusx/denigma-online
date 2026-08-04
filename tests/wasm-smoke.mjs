@@ -27,9 +27,15 @@ function messages(result) {
     Module.UTF8ToString(Module._denigma_result_diagnostic_message(result, index))).join('\n');
 }
 
-function assertResult(result, label, outputMarker, expectedOutputCount = 1) {
+function assertResult(result, label, outputMarker, expectedOutputCount = 1, expectVerbose = false) {
   try {
     if (!Module._denigma_result_success(result)) throw new Error(`${label} failed:\n${messages(result)}`);
+    if (expectVerbose) {
+      const diagnosticCount = Module._denigma_result_diagnostic_count(result);
+      const hasVerbose = Array.from({ length: diagnosticCount }, (_, index) =>
+        Module._denigma_result_diagnostic_severity(result, index)).includes(3);
+      if (!hasVerbose) throw new Error(`${label} did not return verbose diagnostics`);
+    }
     const outputCount = Module._denigma_result_output_count(result);
     if (outputCount !== expectedOutputCount) {
       throw new Error(`${label} produced ${outputCount} outputs; expected ${expectedOutputCount}`);
@@ -49,9 +55,11 @@ try {
   const inspection = Module._denigma_inspect(inputPointer, input.byteLength, sourcePointer);
   try {
     if (!Module._denigma_result_success(inspection)) throw new Error(`Inspection failed:\n${messages(inspection)}`);
+    const scoreName = Module.UTF8ToString(Module._denigma_result_score_name(inspection));
+    if (!scoreName) throw new Error('Inspection returned no score name or fallback');
     const partCount = Module._denigma_result_part_count(inspection);
     if (partCount) firstPartOutputIndex = Module._denigma_result_part_output_index(inspection, 0);
-    console.log(`Inspection: ${partCount} linked parts`);
+    console.log(`Inspection: ${scoreName}, ${partCount} linked parts`);
   } finally {
     Module._denigma_result_destroy(inspection);
   }
@@ -78,7 +86,7 @@ try {
   }
   assertResult(
     Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 1, 0, 0, 2, 0, 0, 0),
-    'MNX', '"mnx"');
+    'MNX with verbose logging', '"mnx"', 1, true);
   assertResult(
     Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 2, 0, 0, 2, 0, 0, 0),
     'EnigmaXML', '<finale');
