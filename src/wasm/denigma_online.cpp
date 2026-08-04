@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <iterator>
 #include <memory>
 #include <new>
 #include <optional>
@@ -24,6 +26,7 @@
 #include "core/denigma.h"
 #include "core/musx_reader.h"
 #include "formats/enigmaxml/enigmaxml.h"
+#include "utils/ziputils.h"
 
 namespace {
 
@@ -50,6 +53,30 @@ struct OnlineResult
     std::vector<OutputFile> outputs;
 };
 
+enum class InputFormat
+{
+    Musx,
+    EnigmaXml,
+    ZippedEnigmaXml
+};
+
+bool endsWithCaseInsensitive(std::string_view value, std::string_view suffix)
+{
+    if (value.size() < suffix.size()) return false;
+    return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin(), [](char lhs, char rhs) {
+        return std::tolower(static_cast<unsigned char>(lhs)) == std::tolower(static_cast<unsigned char>(rhs));
+    });
+}
+
+InputFormat inputFormat(const char* sourceName)
+{
+    const std::string_view name = sourceName ? sourceName : "browser.musx";
+    if (endsWithCaseInsensitive(name, ".enigmaxml.zip")) return InputFormat::ZippedEnigmaXml;
+    if (endsWithCaseInsensitive(name, ".enigmaxml")) return InputFormat::EnigmaXml;
+    if (endsWithCaseInsensitive(name, ".musx")) return InputFormat::Musx;
+    throw std::invalid_argument("Unsupported input filename.");
+}
+
 void addDiagnostic(OnlineResult& result, denigma::MessageSeverity severity, std::string message)
 {
     result.success = result.success && severity != denigma::MessageSeverity::Error;
@@ -67,12 +94,54 @@ denigma::CommonOptions makeCommonOptions(OnlineResult& result, const char* sourc
     return options;
 }
 
+denigma::DenigmaContext makeInputContext(OnlineResult& result, const char* sourceName, const char* fallbackName)
+{
+    denigma::DenigmaContext context(DENIGMA_NAME);
+    context.inputFilePath = sourceName ? sourceName : fallbackName;
+    context.verbose = true;
+    context.logCallback = [&result](denigma::MessageSeverity severity, std::string_view message) {
+        addDiagnostic(result, severity, std::string(message));
+    };
+    return context;
+}
+
 std::span<const std::byte> inputBytes(const std::uint8_t* data, std::size_t size)
 {
     if (!data && size != 0) {
         throw std::invalid_argument("Input buffer is null.");
     }
     return { reinterpret_cast<const std::byte*>(data), size };
+}
+
+denigma::Buffer copyBytes(std::span<const std::byte> bytes)
+{
+    denigma::Buffer result;
+    result.reserve(bytes.size());
+    std::transform(bytes.begin(), bytes.end(), std::back_inserter(result), [](std::byte value) {
+        return static_cast<char>(value);
+    });
+    return result;
+}
+
+denigma::CommandInputData readInputData(std::span<const std::byte> bytes,
+                                        InputFormat format,
+                                        const denigma::DenigmaContext& context)
+{
+    if (format == InputFormat::Musx) {
+        denigma::BufferRandomAccessReader reader(bytes);
+        return denigma::formats::enigmaxml::detail::extractMusxInputData(reader, context);
+    }
+    if (format == InputFormat::ZippedEnigmaXml) {
+        denigma::BufferRandomAccessReader reader(bytes);
+        const auto xml = utils::readSoleFileWithExtension(reader, ENIGMAXML_EXTENSION, context);
+        return { denigma::Buffer(xml.begin(), xml.end()), std::nullopt, {} };
+    }
+    return { copyBytes(bytes), std::nullopt, {} };
+}
+
+std::span<const std::byte> primaryBytes(const denigma::CommandInputData& input)
+{
+    return { reinterpret_cast<const std::byte*>(input.primaryBuffer.data()), input.primaryBuffer.size() };
 }
 
 void appendOutput(OnlineResult& result, std::string_view name, std::span<const std::byte> data)
@@ -108,17 +177,11 @@ void finishConversion(OnlineResult& result, const denigma::ConversionResult& con
     }
 }
 
-void inspectMusx(OnlineResult& result, std::span<const std::byte> bytes, const char* sourceName)
+void inspectInput(OnlineResult& result, std::span<const std::byte> bytes, const char* sourceName, InputFormat format)
 {
-    denigma::BufferRandomAccessReader reader(bytes);
-    denigma::DenigmaContext context(DENIGMA_NAME);
-    context.inputFilePath = sourceName ? sourceName : "browser.musx";
-    context.verbose = true;
-    context.logCallback = [&result](denigma::MessageSeverity severity, std::string_view message) {
-        addDiagnostic(result, severity, std::string(message));
-    };
+    auto context = makeInputContext(result, sourceName, "browser.musx");
 
-    auto input = denigma::formats::enigmaxml::detail::extractMusxInputData(reader, context);
+    auto input = readInputData(bytes, format, context);
     auto document = denigma::createMusxDocument<denigma::MusxReader>(input, context);
     auto parts = document->getOthers()->getArray<musx::dom::others::PartDefinition>(musx::dom::SCORE_PARTID);
 
@@ -143,8 +206,9 @@ void inspectMusx(OnlineResult& result, std::span<const std::byte> bytes, const c
 }
 
 void convertMusicXml(OnlineResult& result,
-                     const denigma::BufferRandomAccessReader& reader,
+                     std::span<const std::byte> bytes,
                      const char* sourceName,
+                     InputFormat inputFormat,
                      bool includeTempo,
                      int cueLayer,
                      const int* selectedOutputs,
@@ -160,20 +224,30 @@ void convertMusicXml(OnlineResult& result,
 
     const std::set<int> selected(selectedOutputs, selectedOutputs + selectedCount);
     int outputIndex = 0;
-    denigma::formats::musicxml::MusxToMusicXmlMultiOutputConverter converter;
-    const auto conversionResult = converter.convert(reader,
-        [&](std::string_view suggestedName, std::span<const std::byte> data) {
-            if (selected.contains(outputIndex)) {
-                appendOutput(result, suggestedName, data);
-            }
-            ++outputIndex;
-        }, options);
+    const auto outputCallback = [&](std::string_view suggestedName, std::span<const std::byte> data) {
+        if (selected.contains(outputIndex)) {
+            appendOutput(result, suggestedName, data);
+        }
+        ++outputIndex;
+    };
+    denigma::ConversionResult conversionResult;
+    if (inputFormat == InputFormat::Musx) {
+        const denigma::BufferRandomAccessReader reader(bytes);
+        const denigma::formats::musicxml::MusxToMusicXmlMultiOutputConverter converter;
+        conversionResult = converter.convert(reader, outputCallback, options);
+    } else {
+        auto context = makeInputContext(result, sourceName, "browser.enigmaxml");
+        const auto input = readInputData(bytes, inputFormat, context);
+        const denigma::formats::musicxml::EnigmaXmlToMusicXmlMultiOutputConverter converter;
+        conversionResult = converter.convert(primaryBytes(input), outputCallback, options);
+    }
     finishConversion(result, conversionResult);
 }
 
 void convertMnx(OnlineResult& result,
-                const denigma::BufferRandomAccessReader& reader,
+                std::span<const std::byte> bytes,
                 const char* sourceName,
+                InputFormat inputFormat,
                 bool includeTempo,
                 bool splitInstruments,
                 int indentSpaces,
@@ -189,8 +263,17 @@ void convertMnx(OnlineResult& result,
     }
 
     std::ostringstream output;
-    denigma::formats::mnx::MusxToMnxJsonConverter converter;
-    const auto conversionResult = converter.convert(reader, output, options);
+    denigma::ConversionResult conversionResult;
+    if (inputFormat == InputFormat::Musx) {
+        const denigma::BufferRandomAccessReader reader(bytes);
+        const denigma::formats::mnx::MusxToMnxJsonConverter converter;
+        conversionResult = converter.convert(reader, output, options);
+    } else {
+        auto context = makeInputContext(result, sourceName, "browser.enigmaxml");
+        const auto input = readInputData(bytes, inputFormat, context);
+        const denigma::formats::mnx::EnigmaXmlToMnxJsonConverter converter;
+        conversionResult = converter.convert(primaryBytes(input), output, options);
+    }
     if (!conversionResult.hasError()) {
         appendOutput(result, {}, output.str());
     }
@@ -198,9 +281,21 @@ void convertMnx(OnlineResult& result,
 }
 
 void convertEnigmaXml(OnlineResult& result,
-                      const denigma::BufferRandomAccessReader& reader,
-                      const char* sourceName)
+                      std::span<const std::byte> bytes,
+                      const char* sourceName,
+                      InputFormat inputFormat)
 {
+    if (inputFormat != InputFormat::Musx) {
+        auto context = makeInputContext(result, sourceName, "browser.enigmaxml");
+        const auto input = readInputData(bytes, inputFormat, context);
+        appendOutput(result, {}, primaryBytes(input));
+        if (input.primaryBuffer.empty()) {
+            addDiagnostic(result, denigma::MessageSeverity::Error, "The EnigmaXML input is empty.");
+        }
+        return;
+    }
+
+    const denigma::BufferRandomAccessReader reader(bytes);
     denigma::formats::enigmaxml::Options options;
     options.common = makeCommonOptions(result, sourceName);
     std::ostringstream output;
@@ -241,7 +336,9 @@ void denigma_free(void* pointer) { ::operator delete(pointer); }
 
 OnlineResult* denigma_inspect(const std::uint8_t* data, std::size_t size, const char* sourceName)
 {
-    return makeResult([&](OnlineResult& result) { inspectMusx(result, inputBytes(data, size), sourceName); });
+    return makeResult([&](OnlineResult& result) {
+        inspectInput(result, inputBytes(data, size), sourceName, inputFormat(sourceName));
+    });
 }
 
 OnlineResult* denigma_convert(const std::uint8_t* data,
@@ -257,19 +354,19 @@ OnlineResult* denigma_convert(const std::uint8_t* data,
 {
     return makeResult([&](OnlineResult& result) {
         const auto bytes = inputBytes(data, size);
-        denigma::BufferRandomAccessReader reader(bytes);
+        const auto sourceFormat = inputFormat(sourceName);
         switch (format) {
         case 0:
             if (!selectedOutputs || selectedCount == 0) {
                 throw std::invalid_argument("Select the score or at least one linked part.");
             }
-            convertMusicXml(result, reader, sourceName, includeTempo != 0, cueLayer, selectedOutputs, selectedCount);
+            convertMusicXml(result, bytes, sourceName, sourceFormat, includeTempo != 0, cueLayer, selectedOutputs, selectedCount);
             break;
         case 1:
-            convertMnx(result, reader, sourceName, includeTempo != 0, splitInstruments != 0, indentSpaces, cueLayer);
+            convertMnx(result, bytes, sourceName, sourceFormat, includeTempo != 0, splitInstruments != 0, indentSpaces, cueLayer);
             break;
         case 2:
-            convertEnigmaXml(result, reader, sourceName);
+            convertEnigmaXml(result, bytes, sourceName, sourceFormat);
             break;
         default:
             throw std::invalid_argument("Unknown output format.");

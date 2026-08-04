@@ -67,7 +67,9 @@ legend, .label { display: block; font-weight: 650; margin-bottom: .5rem; }
   transition: border-color .15s, background .15s;
 }
 .drop-zone.dragging { border-color: var(--accent); background: #eaf1fb; }
+.drop-zone.invalid { border-color: var(--error); }
 .drop-zone input { max-width: 100%; }
+.input-error { color: var(--error); font-weight: 650; margin: .65rem 0 0; }
 
 .file-summary, .status-row, .output-list li, .actions {
   align-items: center;

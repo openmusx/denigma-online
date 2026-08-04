@@ -19,6 +19,8 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /MIT License and warranty disclaimer/);
   assert.match(html, /role="status" aria-live="polite"/);
   assert.match(html, /<label for="file"/);
+  assert.match(html, /accept="[^"]*\.enigmaxml[^"]*\.zip/);
+  assert.match(html, /id="inputError"[^>]*role="alert"[^>]*hidden/);
   assert.match(html, /MusicXML \(uncompressed\)/);
   assert.match(html, /MNX \(experimental\)/);
   assert.match(html, /EnigmaXML \(proprietary Finale XML\)/);
@@ -38,6 +40,18 @@ test('MusicXML documents can be selected or cleared as a group', async () => {
   assert.match(app, /selectAllDocuments\.addEventListener\('click', \(\) => setDocumentSelection\(true\)\)/);
   assert.match(app, /selectNoDocuments\.addEventListener\('click', \(\) => setDocumentSelection\(false\)\)/);
   assert.match(app, /documents\.addEventListener\('change'/);
+});
+
+test('invalid ZIP input is rejected beside the picker and clears its selection', async () => {
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  const rejection = app.slice(app.indexOf('if (!isSupportedInputFile(file))'), app.indexOf('clearInputError();'));
+  assert.match(app, /filename must end in \.enigmaxml\.zip/);
+  assert.match(app, /function showInputError\(message\)/);
+  assert.match(app, /elements\.file\.value = ''/);
+  assert.match(app, /elements\.inputError\.hidden = false/);
+  assert.match(app, /elements\.dropZone\.classList\.add\('invalid'\)/);
+  assert.match(rejection, /setStatus\(''\)/);
+  assert.doesNotMatch(rejection, /setStatus\(message/);
 });
 
 test('outputs download from real links so picker-less browsers keep working', async () => {

@@ -4,6 +4,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createZipBlob } from '../src/web/zip.js';
 
 const [, , moduleArg, wasmArg, musxArg] = process.argv;
 if (!moduleArg || !wasmArg || !musxArg) {
@@ -28,6 +29,7 @@ function messages(result) {
 }
 
 function assertResult(result, label, outputMarker, expectedOutputCount = 1, expectVerbose = false) {
+  let firstOutput;
   try {
     if (!Module._denigma_result_success(result)) throw new Error(`${label} failed:\n${messages(result)}`);
     if (expectVerbose) {
@@ -42,12 +44,58 @@ function assertResult(result, label, outputMarker, expectedOutputCount = 1, expe
     }
     const pointer = Module._denigma_result_output_data(result, 0);
     const size = Module._denigma_result_output_size(result, 0);
-    const text = new TextDecoder().decode(Module.HEAPU8.subarray(pointer, pointer + size));
+    firstOutput = Module.HEAPU8.slice(pointer, pointer + size);
+    const text = new TextDecoder().decode(firstOutput);
     if (!text.includes(outputMarker)) throw new Error(`${label} output did not include ${outputMarker}`);
     console.log(`${label}: ${size} bytes`);
   } finally {
     Module._denigma_result_destroy(result);
   }
+  return firstOutput;
+}
+
+function withAllocatedInput(bytes, name, callback) {
+  const dataPointer = Module._denigma_malloc(bytes.byteLength);
+  Module.HEAPU8.set(bytes, dataPointer);
+  const encodedName = new TextEncoder().encode(`${name}\0`);
+  const namePointer = Module._denigma_malloc(encodedName.byteLength);
+  Module.HEAPU8.set(encodedName, namePointer);
+  try {
+    return callback(dataPointer, namePointer);
+  } finally {
+    Module._denigma_free(namePointer);
+    Module._denigma_free(dataPointer);
+  }
+}
+
+function exerciseEnigmaXmlInput(bytes, name, label) {
+  withAllocatedInput(bytes, name, (dataPointer, namePointer) => {
+    const inspection = Module._denigma_inspect(dataPointer, bytes.byteLength, namePointer);
+    try {
+      if (!Module._denigma_result_success(inspection)) throw new Error(`${label} inspection failed:\n${messages(inspection)}`);
+      if (!Module.UTF8ToString(Module._denigma_result_score_name(inspection))) {
+        throw new Error(`${label} inspection returned no score name or fallback`);
+      }
+    } finally {
+      Module._denigma_result_destroy(inspection);
+    }
+
+    const selectionPointer = Module._denigma_malloc(4);
+    new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
+    try {
+      assertResult(
+        Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 0, 0, 0, 2, 0, selectionPointer, 1),
+        `${label} to MusicXML`, '<score-partwise');
+    } finally {
+      Module._denigma_free(selectionPointer);
+    }
+    assertResult(
+      Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 1, 0, 0, 2, 0, 0, 0),
+      `${label} to MNX`, '"mnx"');
+    assertResult(
+      Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 2, 0, 0, 2, 0, 0, 0),
+      `${label} pass-through`, '<finale');
+  });
 }
 
 try {
@@ -87,9 +135,14 @@ try {
   assertResult(
     Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 1, 0, 0, 2, 0, 0, 0),
     'MNX with verbose logging', '"mnx"', 1, true);
-  assertResult(
+  const enigmaXml = assertResult(
     Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 2, 0, 0, 2, 0, 0, 0),
     'EnigmaXML', '<finale');
+
+  exerciseEnigmaXmlInput(enigmaXml, 'sample.enigmaxml', 'EnigmaXML input');
+  const zippedBlob = await createZipBlob([{ name: 'sample.enigmaxml', data: enigmaXml }]);
+  const zippedEnigmaXml = new Uint8Array(await zippedBlob.arrayBuffer());
+  exerciseEnigmaXmlInput(zippedEnigmaXml, 'sample.enigmaxml.zip', 'Zipped EnigmaXML input');
 
   const invalidPointer = Module._denigma_malloc(3);
   Module.HEAPU8.set([1, 2, 3], invalidPointer);

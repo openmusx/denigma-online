@@ -7,12 +7,12 @@ export const FORMATS = Object.freeze({
   enigmaxml: { id: 2, label: 'EnigmaXML (proprietary Finale XML)', extension: 'enigmaxml', mime: 'application/xml' }
 });
 
-export function isMusxFile(file) {
-  return Boolean(file?.name && file.name.toLowerCase().endsWith('.musx'));
+export function isSupportedInputFile(file) {
+  return Boolean(file?.name && /\.(?:musx|enigmaxml(?:\.zip)?)$/i.test(file.name));
 }
 
 export function baseName(fileName) {
-  return fileName.replace(/\.musx$/i, '') || 'converted';
+  return fileName.replace(/\.(?:musx|enigmaxml(?:\.zip)?)$/i, '') || 'converted';
 }
 
 export function safeNamePart(value) {

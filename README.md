@@ -230,8 +230,8 @@ No directory handles are persisted by the application.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.64212e38d843.wasm:    5,461,413 bytes (5.21 MiB)
-denigma.64212e38d843.wasm.gz: 1,460,141 bytes (1.39 MiB)
+denigma.12af3e11a6d4.wasm:    5,472,413 bytes (5.22 MiB)
+denigma.12af3e11a6d4.wasm.gz: 1,463,667 bytes (1.40 MiB)
 ```
 
 This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at
