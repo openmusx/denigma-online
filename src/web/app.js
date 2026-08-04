@@ -15,6 +15,7 @@ import {
 import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
 
 const ISSUE_URL = 'https://github.com/rpatters1/denigma/issues';
+const PREVIEW_MODULE_URL = '__PREVIEW_MODULE_URL__';
 const canPickSaveFile = 'showSaveFilePicker' in window;
 const canPickDirectory = 'showDirectoryPicker' in window;
 const canZip = supportsCompression();
@@ -27,10 +28,14 @@ let wasmReady = false;
 let busy = false;
 let inputFile;
 let parts = [];
+let scorePageSize;
 let outputs = [];
 let objectUrls = [];
 let diagnostics = [];
 let lastConversion;
+let activePreview;
+let previewSequence = 0;
+let previewModulePromise;
 let runtime = {
   denigmaVersion: 'unknown',
   denigmaCommit: 'unknown',
@@ -80,7 +85,21 @@ function revokeObjectUrls() {
   objectUrls = [];
 }
 
+function clearPreview() {
+  previewSequence += 1;
+  if (activePreview) {
+    activePreview.destroy();
+    activePreview = undefined;
+  }
+  elements.previewCanvas.replaceChildren();
+  elements.previewStatus.textContent = '';
+  elements.previewError.textContent = '';
+  elements.previewError.hidden = true;
+  elements.previewSection.hidden = true;
+}
+
 function clearOutputs() {
+  clearPreview();
   revokeObjectUrls();
   outputs = [];
   diagnostics = [];
@@ -204,13 +223,48 @@ async function saveOutput(output) {
   }
 }
 
+async function previewOutput(output, button) {
+  clearPreview();
+  const sequence = previewSequence;
+  elements.previewHeading.textContent = `Score preview · ${output.name}`;
+  elements.previewStatus.textContent = 'Rendering preview…';
+  elements.previewSection.hidden = false;
+  button.disabled = true;
+  button.textContent = 'Rendering…';
+  try {
+    previewModulePromise ||= import(new URL(PREVIEW_MODULE_URL, import.meta.url).href);
+    const { renderMusicXmlPreview } = await previewModulePromise;
+    const preview = await renderMusicXmlPreview(elements.previewCanvas, output.blob, output.pageSize);
+    if (sequence !== previewSequence) {
+      preview.destroy();
+      return;
+    }
+    activePreview = preview;
+    elements.previewStatus.textContent = 'Preview ready.';
+    elements.previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    if (sequence !== previewSequence) return;
+    elements.previewError.textContent = `Preview failed: ${error.message || error}`;
+    elements.previewError.hidden = false;
+    elements.previewStatus.textContent = '';
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+      button.textContent = 'Preview';
+    }
+  }
+}
+
 function renderOutputs(rawOutputs) {
   revokeObjectUrls();
   const formatKey = elements.format.value;
   const format = selectedFormat();
   const named = rawOutputs.map((output, index) => ({
     name: outputFileName(inputFile.name, formatKey, output.suggestedName, index, rawOutputs.length),
-    data: output.data
+    data: output.data,
+    pageSize: output.outputIndex === 0
+      ? scorePageSize
+      : parts.find((part) => part.outputIndex === output.outputIndex)?.pageSize
   }));
   outputs = uniquifyFileNames(named).map((output) => {
     const blob = new Blob([output.data], { type: format.mime });
@@ -230,14 +284,25 @@ function renderOutputs(rawOutputs) {
     link.textContent = output.name;
     info.append(link, document.createTextNode(` · ${formatBytes(output.data.byteLength)}`));
     item.append(info);
+    const itemActions = document.createElement('div');
+    itemActions.className = 'output-item-actions';
+    if (formatKey === 'musicxml') {
+      const preview = document.createElement('button');
+      preview.type = 'button';
+      preview.className = 'secondary small';
+      preview.textContent = 'Preview';
+      preview.addEventListener('click', () => previewOutput(output, preview));
+      itemActions.append(preview);
+    }
     if (canPickSaveFile) {
       const save = document.createElement('button');
       save.type = 'button';
       save.className = 'secondary small';
       save.textContent = 'Save as…';
       save.addEventListener('click', () => saveOutput(output));
-      item.append(save);
+      itemActions.append(save);
     }
+    if (itemActions.childElementCount) item.append(itemActions);
     elements.outputList.append(item);
   });
   elements.downloadZip.hidden = !canZip || outputs.length < 2;
@@ -250,6 +315,7 @@ async function loadFile(file) {
     clearOutputs();
     inputFile = undefined;
     parts = [];
+    scorePageSize = undefined;
     renderParts();
     elements.inputSummary.hidden = true;
     const message = file?.name?.toLowerCase().endsWith('.zip')
@@ -264,6 +330,7 @@ async function loadFile(file) {
   clearOutputs();
   inputFile = file;
   parts = [];
+  scorePageSize = undefined;
   renderParts();
   elements.inputName.textContent = file.name;
   elements.inputMeta.textContent = formatBytes(file.size);
@@ -314,6 +381,7 @@ worker.addEventListener('message', ({ data }) => {
       return;
     }
     elements.scoreName.textContent = data.scoreName || 'Score';
+    scorePageSize = data.scorePageSize;
     parts = data.parts;
     renderParts();
     renderDiagnostics(diagnostics);
@@ -453,6 +521,8 @@ elements.copyReport.addEventListener('click', async () => {
     window.prompt('Copy this diagnostic report:', report);
   }
 });
+
+elements.closePreview.addEventListener('click', clearPreview);
 
 elements.reportIssue.href = ISSUE_URL;
 elements.failureIssue.href = ISSUE_URL;

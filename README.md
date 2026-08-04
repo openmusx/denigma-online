@@ -17,9 +17,15 @@ document data stays in the browser.
   standard browser download.
 - Runs conversion off the UI thread and supports repeated conversions without
   reloading the page.
+- Lazily loads OpenSheetMusicDisplay when a generated MusicXML document is
+  explicitly previewed, then renders the complete document using page dimensions
+  and effective spatium size read directly from musxdom's resolved score or
+  linked-part page format. The preview recalculates OSMD's scale when resized so
+  the spatium remains proportional to the page.
 
 There is no backend, service worker, analytics, telemetry, CDN, remote font, or
-third-party runtime dependency.
+third-party runtime service. OSMD is bundled locally and is not downloaded
+unless a user opens a preview.
 
 ## Requirements
 
@@ -70,6 +76,7 @@ The default build uses the Denigma revision pinned by `DENIGMA_GIT_TAG` in
 `CMakeLists.txt`.
 
 ```sh
+npm ci
 emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel
 cmake --build build-wasm --target web_dist -j2
 npm test
@@ -77,9 +84,10 @@ npm run test:wasm
 ```
 
 The deployable site is generated in `dist/`. The build hashes the WASM, module,
-worker, application, utility module, and CSS filenames and writes their names to
-`dist/asset-manifest.json`. It also generates a maximum-compression `.wasm.gz`
-sidecar for servers with static gzip support.
+worker, application, preview, renderer, utility module, and CSS filenames and
+writes their names to `dist/asset-manifest.json`. It also generates
+maximum-compression `.wasm.gz` and OSMD `.js.gz` sidecars for servers with
+static gzip support.
 
 For development against a local Denigma checkout:
 
@@ -150,8 +158,8 @@ npm test
 npm run test:wasm
 ```
 
-The dependency-free Node unit suite covers filenames, duplicate part names,
-diagnostic reports, privacy/accessibility markup, and the worker boundary. Run
+The Node unit suite covers filenames, duplicate part names, diagnostic reports,
+privacy/accessibility markup, and the worker boundary. Run
 `test:wasm` after `web_dist`; it inspects a checked-in linked-parts MUSX fixture,
 exports the score, one part, score plus part, MNX, and EnigmaXML, and verifies
 that invalid MUSX bytes fail with diagnostics. A successful production build
@@ -202,7 +210,9 @@ only performs normal `GET` requests for its own static assets.
 
 The selected MUSX bytes are transferred from the page to a same-origin Web
 Worker and copied into WebAssembly memory. Generated files return to the page as
-local `Blob` objects. No source or output bytes are sent over the network.
+local `Blob` objects. Previewed MusicXML remains in the page and is passed
+directly to the locally bundled OSMD renderer. No source or output bytes are
+sent over the network.
 
 The diagnostic report contains the Denigma version and commit, the Denigma
 Online commit and build hash, output format, settings, and Denigma messages.
@@ -225,13 +235,17 @@ Browsers control the last open/download folder for standard dialogs. Chromium's
 save picker receives a stable picker ID so it can remember its last location.
 No directory handles are persisted by the application.
 
+OSMD is fetched as a separate, immutable, content-hashed asset only after a
+Preview button is used. Its BSD-3-Clause license link is likewise shown only
+inside the opened preview panel.
+
 ## WASM size
 
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.12af3e11a6d4.wasm:    5,472,413 bytes (5.22 MiB)
-denigma.12af3e11a6d4.wasm.gz: 1,463,667 bytes (1.40 MiB)
+denigma.cabc08c5623a.wasm:    5,473,971 bytes (5.22 MiB)
+denigma.cabc08c5623a.wasm.gz: 1,464,725 bytes (1.40 MiB)
 ```
 
 This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at
@@ -240,6 +254,20 @@ shares Denigma, MUSX parsing, XML, compression, and exporter dependencies and is
 cached under a content-hashed immutable URL. C++ exception catching is enabled
 across Denigma and all linked dependencies so conversion failures can be
 reported without terminating the WebAssembly runtime.
+
+## Preview renderer size
+
+OSMD is a separate optional download:
+
+```text
+osmd.056b0d9b68c5.js:    1,320,279 bytes (1.26 MiB)
+osmd.056b0d9b68c5.js.gz:   332,304 bytes (324.5 KiB)
+```
+
+The browser requests neither this asset nor the 3,606-byte preview adapter
+until a user clicks Preview. With the generated Apache configuration, opening a
+preview therefore adds 335,910 transferred bytes beyond the normal application
+load. Subsequent previews reuse the immutable cached renderer.
 
 ## Updating Denigma
 

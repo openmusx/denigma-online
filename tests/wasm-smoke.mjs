@@ -28,7 +28,7 @@ function messages(result) {
     Module.UTF8ToString(Module._denigma_result_diagnostic_message(result, index))).join('\n');
 }
 
-function assertResult(result, label, outputMarker, expectedOutputCount = 1, expectVerbose = false) {
+function assertResult(result, label, outputMarker, expectedOutputCount = 1, expectVerbose = false, expectedOutputIndices) {
   let firstOutput;
   try {
     if (!Module._denigma_result_success(result)) throw new Error(`${label} failed:\n${messages(result)}`);
@@ -41,6 +41,12 @@ function assertResult(result, label, outputMarker, expectedOutputCount = 1, expe
     const outputCount = Module._denigma_result_output_count(result);
     if (outputCount !== expectedOutputCount) {
       throw new Error(`${label} produced ${outputCount} outputs; expected ${expectedOutputCount}`);
+    }
+    if (expectedOutputIndices) {
+      const actual = Array.from({ length: outputCount }, (_, index) => Module._denigma_result_output_index(result, index));
+      if (actual.some((value, index) => value !== expectedOutputIndices[index])) {
+        throw new Error(`${label} output indices were ${actual}; expected ${expectedOutputIndices}`);
+      }
     }
     const pointer = Module._denigma_result_output_data(result, 0);
     const size = Module._denigma_result_output_size(result, 0);
@@ -76,6 +82,11 @@ function exerciseEnigmaXmlInput(bytes, name, label) {
       if (!Module.UTF8ToString(Module._denigma_result_score_name(inspection))) {
         throw new Error(`${label} inspection returned no score name or fallback`);
       }
+      if (Module._denigma_result_score_page_width_mm(inspection) <= 0
+          || Module._denigma_result_score_page_height_mm(inspection) <= 0
+          || Module._denigma_result_score_spatium_mm(inspection) <= 0) {
+        throw new Error(`${label} inspection returned no score page metrics`);
+      }
     } finally {
       Module._denigma_result_destroy(inspection);
     }
@@ -85,7 +96,7 @@ function exerciseEnigmaXmlInput(bytes, name, label) {
     try {
       assertResult(
         Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 0, 0, 0, 2, 0, selectionPointer, 1),
-        `${label} to MusicXML`, '<score-partwise');
+        `${label} to MusicXML`, '<score-partwise', 1, false, [0]);
     } finally {
       Module._denigma_free(selectionPointer);
     }
@@ -105,9 +116,22 @@ try {
     if (!Module._denigma_result_success(inspection)) throw new Error(`Inspection failed:\n${messages(inspection)}`);
     const scoreName = Module.UTF8ToString(Module._denigma_result_score_name(inspection));
     if (!scoreName) throw new Error('Inspection returned no score name or fallback');
+    const scoreWidth = Module._denigma_result_score_page_width_mm(inspection);
+    const scoreHeight = Module._denigma_result_score_page_height_mm(inspection);
+    const scoreSpatium = Module._denigma_result_score_spatium_mm(inspection);
+    if (scoreWidth <= 0 || scoreHeight <= 0 || scoreSpatium <= 0) {
+      throw new Error('Inspection returned no score page metrics');
+    }
     const partCount = Module._denigma_result_part_count(inspection);
-    if (partCount) firstPartOutputIndex = Module._denigma_result_part_output_index(inspection, 0);
-    console.log(`Inspection: ${scoreName}, ${partCount} linked parts`);
+    if (partCount) {
+      firstPartOutputIndex = Module._denigma_result_part_output_index(inspection, 0);
+      if (Module._denigma_result_part_page_width_mm(inspection, 0) <= 0
+          || Module._denigma_result_part_page_height_mm(inspection, 0) <= 0
+          || Module._denigma_result_part_spatium_mm(inspection, 0) <= 0) {
+        throw new Error('Inspection returned no linked-part page metrics');
+      }
+    }
+    console.log(`Inspection: ${scoreName}, ${partCount} linked parts, ${scoreWidth.toFixed(1)} × ${scoreHeight.toFixed(1)} mm, ${scoreSpatium.toFixed(2)} mm spatium`);
   } finally {
     Module._denigma_result_destroy(inspection);
   }
@@ -117,17 +141,17 @@ try {
   try {
     assertResult(
       Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 0, 0, 2, 0, selectionPointer, 1),
-      'MusicXML', '<score-partwise');
+      'MusicXML', '<score-partwise', 1, false, [0]);
     if (firstPartOutputIndex !== undefined) {
       new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, firstPartOutputIndex, true);
       assertResult(
         Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 1, 0, 2, 0, selectionPointer, 1),
-        'MusicXML linked part', '<score-partwise');
+        'MusicXML linked part', '<score-partwise', 1, false, [firstPartOutputIndex]);
       new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
       new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer + 4, firstPartOutputIndex, true);
       assertResult(
         Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 0, 0, 2, 0, selectionPointer, 2),
-        'MusicXML score and linked part', '<score-partwise', 2);
+        'MusicXML score and linked part', '<score-partwise', 2, false, [0, firstPartOutputIndex]);
     }
   } finally {
     Module._denigma_free(selectionPointer);

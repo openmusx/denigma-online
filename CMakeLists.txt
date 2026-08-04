@@ -74,7 +74,7 @@ target_link_options(denigma_online PRIVATE
     "-sALLOW_MEMORY_GROWTH=1"
     "-sFILESYSTEM=0"
     "-sASSERTIONS=0"
-    "-sEXPORTED_FUNCTIONS=['_denigma_malloc','_denigma_free','_denigma_inspect','_denigma_convert','_denigma_result_destroy','_denigma_result_success','_denigma_result_diagnostic_count','_denigma_result_diagnostic_severity','_denigma_result_diagnostic_message','_denigma_result_score_name','_denigma_result_part_count','_denigma_result_part_id','_denigma_result_part_name','_denigma_result_part_output_index','_denigma_result_output_count','_denigma_result_output_name','_denigma_result_output_data','_denigma_result_output_size','_denigma_version','_denigma_commit']"
+    "-sEXPORTED_FUNCTIONS=['_denigma_malloc','_denigma_free','_denigma_inspect','_denigma_convert','_denigma_result_destroy','_denigma_result_success','_denigma_result_diagnostic_count','_denigma_result_diagnostic_severity','_denigma_result_diagnostic_message','_denigma_result_score_name','_denigma_result_score_page_width_mm','_denigma_result_score_page_height_mm','_denigma_result_score_spatium_mm','_denigma_result_part_count','_denigma_result_part_id','_denigma_result_part_name','_denigma_result_part_output_index','_denigma_result_part_page_width_mm','_denigma_result_part_page_height_mm','_denigma_result_part_spatium_mm','_denigma_result_output_count','_denigma_result_output_name','_denigma_result_output_data','_denigma_result_output_size','_denigma_result_output_index','_denigma_version','_denigma_commit']"
     "-sEXPORTED_RUNTIME_METHODS=['HEAPU8','UTF8ToString']"
 )
 

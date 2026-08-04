@@ -52,6 +52,15 @@ const moduleUrl = await emit('denigma', 'js', moduleSource);
 const buildVersion = hash(Buffer.concat([wasm, moduleSource]));
 const denigmaOnlineCommit = repositoryCommit();
 
+const osmdSource = await readFile(join(root, 'node_modules', 'opensheetmusicdisplay', 'build', 'opensheetmusicdisplay.min.js'));
+const osmdUrl = await emit('osmd', 'js', osmdSource);
+const osmdGzip = gzipSync(osmdSource, { level: 9 });
+await writeFile(join(dist, `${osmdUrl.slice(2)}.gz`), osmdGzip);
+
+let previewSource = await readFile(join(source, 'preview.js'), 'utf8');
+previewSource = previewSource.replace('__OSMD_SCRIPT_URL__', osmdUrl.replace('./assets/', './'));
+const previewUrl = await emit('preview', 'js', previewSource);
+
 let workerSource = await readFile(join(source, 'worker.js'), 'utf8');
 workerSource = workerSource
   .replace('__DENIGMA_MODULE_URL__', moduleUrl.replace('./assets/', './'))
@@ -70,6 +79,7 @@ let appSource = await readFile(join(source, 'app.js'), 'utf8');
 appSource = appSource
   .replace('__CORE_MODULE_URL__', coreUrl.replace('./assets/', './'))
   .replace('__ZIP_MODULE_URL__', zipUrl.replace('./assets/', './'))
+  .replace('__PREVIEW_MODULE_URL__', previewUrl.replace('./assets/', './'))
   .replace('__WORKER_MODULE_URL__', workerUrl.replace('./assets/', './'));
 const appUrl = await emit('app', 'js', appSource);
 
@@ -80,6 +90,7 @@ let html = await readFile(join(source, 'index.html'), 'utf8');
 html = html.replace('__STYLES_URL__', stylesUrl).replace('__APP_URL__', appUrl);
 await writeFile(join(dist, 'index.html'), html);
 await cp(join(root, 'LICENSE'), join(dist, 'LICENSE.txt'));
+await cp(join(root, 'node_modules', 'opensheetmusicdisplay', 'LICENSE'), join(dist, 'LICENSE-OSMD.txt'));
 await cp(join(root, 'deploy', 'apache.htaccess'), join(dist, '.htaccess'));
 await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   buildVersion,
@@ -89,12 +100,18 @@ await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   worker: workerUrl,
   core: coreUrl,
   zip: zipUrl,
+  preview: previewUrl,
+  osmd: osmdUrl,
   app: appUrl,
   styles: stylesUrl,
   wasmBytes: wasm.byteLength,
-  wasmGzipBytes: wasmGzip.byteLength
+  wasmGzipBytes: wasmGzip.byteLength,
+  osmdBytes: osmdSource.byteLength,
+  osmdGzipBytes: osmdGzip.byteLength
 }, null, 2)}\n`);
 
 console.log(`Built ${dist}`);
 console.log(`${basename(wasmUrl)}: ${wasm.byteLength} bytes`);
 console.log(`${basename(wasmUrl)}.gz: ${wasmGzip.byteLength} bytes`);
+console.log(`${basename(osmdUrl)}: ${osmdSource.byteLength} bytes`);
+console.log(`${basename(osmdUrl)}.gz: ${osmdGzip.byteLength} bytes`);
