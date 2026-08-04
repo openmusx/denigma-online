@@ -42,6 +42,11 @@ struct PageSize
     double widthMm{};
     double heightMm{};
     double spatiumMm{};
+    bool hasMargins{};
+    double marginTopSp{};
+    double marginBottomSp{};
+    double marginLeftSp{};
+    double marginRightSp{};
 };
 
 struct PartInfo
@@ -180,12 +185,26 @@ PageSize pageSizeForPart(const musx::dom::DocumentPtr& document, musx::dom::Cmpe
         const auto options = document->getOptions()->get<musx::dom::options::PageFormatOptions>();
         const auto format = options ? options->calcPageFormatForPart(partId) : nullptr;
         if (!format || format->pageWidth <= 0 || format->pageHeight <= 0) return {};
-        return {
+        PageSize result{
             static_cast<double>(format->pageWidth) / musx::dom::EVPU_PER_MM,
             static_cast<double>(format->pageHeight) / musx::dom::EVPU_PER_MM,
             format->calcCombinedSystemScaling().toDouble() * musx::dom::EVPU_PER_SPACE
                 / musx::dom::EVPU_PER_MM
         };
+        const auto firstPage = document->getOthers()->get<musx::dom::others::Page>(partId, 1);
+        const auto marginScaling = firstPage && !firstPage->holdMargins
+            ? format->calcSystemScaling().toDouble()
+            : format->calcCombinedSystemScaling().toDouble();
+        if (marginScaling <= 0) return result;
+        const auto marginSp = [marginScaling](musx::dom::Evpu value) {
+            return static_cast<double>(value) / (musx::dom::EVPU_PER_SPACE * marginScaling);
+        };
+        result.hasMargins = true;
+        result.marginTopSp = marginSp(-(firstPage ? firstPage->margTop : format->leftPageMarginTop));
+        result.marginBottomSp = marginSp(firstPage ? firstPage->margBottom : format->leftPageMarginBottom);
+        result.marginLeftSp = marginSp(firstPage ? firstPage->margLeft : format->leftPageMarginLeft);
+        result.marginRightSp = marginSp(-(firstPage ? firstPage->margRight : format->leftPageMarginRight));
+        return result;
     } catch (...) {
         return {};
     }
@@ -449,6 +468,31 @@ double denigma_result_score_spatium_mm(const OnlineResult* result)
     return result ? result->scorePageSize.spatiumMm : 0.0;
 }
 
+int denigma_result_score_has_page_margins(const OnlineResult* result)
+{
+    return result && result->scorePageSize.hasMargins ? 1 : 0;
+}
+
+double denigma_result_score_page_margin_top_sp(const OnlineResult* result)
+{
+    return result ? result->scorePageSize.marginTopSp : 0.0;
+}
+
+double denigma_result_score_page_margin_bottom_sp(const OnlineResult* result)
+{
+    return result ? result->scorePageSize.marginBottomSp : 0.0;
+}
+
+double denigma_result_score_page_margin_left_sp(const OnlineResult* result)
+{
+    return result ? result->scorePageSize.marginLeftSp : 0.0;
+}
+
+double denigma_result_score_page_margin_right_sp(const OnlineResult* result)
+{
+    return result ? result->scorePageSize.marginRightSp : 0.0;
+}
+
 std::size_t denigma_result_part_count(const OnlineResult* result) { return result ? result->parts.size() : 0; }
 
 int denigma_result_part_id(const OnlineResult* result, std::size_t index)
@@ -485,6 +529,36 @@ double denigma_result_part_spatium_mm(const OnlineResult* result, std::size_t in
 {
     const auto* item = result ? itemAt(result->parts, index) : nullptr;
     return item ? item->pageSize.spatiumMm : 0.0;
+}
+
+int denigma_result_part_has_page_margins(const OnlineResult* result, std::size_t index)
+{
+    const auto* item = result ? itemAt(result->parts, index) : nullptr;
+    return item && item->pageSize.hasMargins ? 1 : 0;
+}
+
+double denigma_result_part_page_margin_top_sp(const OnlineResult* result, std::size_t index)
+{
+    const auto* item = result ? itemAt(result->parts, index) : nullptr;
+    return item ? item->pageSize.marginTopSp : 0.0;
+}
+
+double denigma_result_part_page_margin_bottom_sp(const OnlineResult* result, std::size_t index)
+{
+    const auto* item = result ? itemAt(result->parts, index) : nullptr;
+    return item ? item->pageSize.marginBottomSp : 0.0;
+}
+
+double denigma_result_part_page_margin_left_sp(const OnlineResult* result, std::size_t index)
+{
+    const auto* item = result ? itemAt(result->parts, index) : nullptr;
+    return item ? item->pageSize.marginLeftSp : 0.0;
+}
+
+double denigma_result_part_page_margin_right_sp(const OnlineResult* result, std::size_t index)
+{
+    const auto* item = result ? itemAt(result->parts, index) : nullptr;
+    return item ? item->pageSize.marginRightSp : 0.0;
 }
 
 std::size_t denigma_result_output_count(const OnlineResult* result) { return result ? result->outputs.size() : 0; }

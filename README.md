@@ -19,9 +19,11 @@ document data stays in the browser.
   reloading the page.
 - Lazily loads OpenSheetMusicDisplay when a generated MusicXML document is
   explicitly previewed, then renders the complete document using page dimensions
-  and effective spatium size read directly from musxdom's resolved score or
-  linked-part page format. The preview recalculates OSMD's scale when resized so
-  the spatium remains proportional to the page.
+  effective spatium size, and page margins read directly from musxdom's resolved
+  score or linked-part page format. The preview recalculates OSMD's scale when
+  resized so the spatium remains proportional to the page. Because OSMD accepts
+  only one global margin set, the preview uses the resolved first-page vertical
+  margins and the average of its left and right margins throughout.
 
 There is no backend, service worker, analytics, telemetry, CDN, remote font, or
 third-party runtime service. OSMD is bundled locally and is not downloaded
@@ -244,8 +246,8 @@ inside the opened preview panel.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.cabc08c5623a.wasm:    5,473,971 bytes (5.22 MiB)
-denigma.cabc08c5623a.wasm.gz: 1,464,725 bytes (1.40 MiB)
+denigma.f5cbf0f18a89.wasm:    5,474,666 bytes (5.22 MiB)
+denigma.f5cbf0f18a89.wasm.gz: 1,463,669 bytes (1.40 MiB)
 ```
 
 This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at
@@ -264,9 +266,9 @@ osmd.056b0d9b68c5.js:    1,320,279 bytes (1.26 MiB)
 osmd.056b0d9b68c5.js.gz:   332,304 bytes (324.5 KiB)
 ```
 
-The browser requests neither this asset nor the 3,606-byte preview adapter
+The browser requests neither this asset nor the 4,196-byte preview adapter
 until a user clicks Preview. With the generated Apache configuration, opening a
-preview therefore adds 335,910 transferred bytes beyond the normal application
+preview therefore adds 336,500 transferred bytes beyond the normal application
 load. Subsequent previews reuse the immutable cached renderer.
 
 ## Updating Denigma

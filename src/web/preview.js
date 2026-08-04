@@ -14,6 +14,19 @@ export function previewHeightForPage(pageHeightPx, verticalChromePx = 0) {
   return pageHeightPx * 1.5 + verticalChromePx;
 }
 
+export function sourcePageMargins(pageSize) {
+  if (!pageSize?.hasMargins) return undefined;
+  const values = [pageSize.marginTopSp, pageSize.marginBottomSp, pageSize.marginLeftSp, pageSize.marginRightSp];
+  if (!values.every(Number.isFinite)) return undefined;
+  const horizontalMargin = (pageSize.marginLeftSp + pageSize.marginRightSp) / 2;
+  return {
+    PageTopMargin: pageSize.marginTopSp,
+    PageBottomMargin: pageSize.marginBottomSp,
+    PageLeftMargin: horizontalMargin,
+    PageRightMargin: horizontalMargin
+  };
+}
+
 function loadOsmd() {
   if (globalThis.opensheetmusicdisplay?.OpenSheetMusicDisplay) {
     return Promise.resolve(globalThis.opensheetmusicdisplay.OpenSheetMusicDisplay);
@@ -54,6 +67,8 @@ export async function renderMusicXmlPreview(container, musicXml, pageSize) {
     pageBackgroundColor: '#ffffff'
   });
   if (validPageSize) renderer.setCustomPageFormat(validPageSize.widthMm, validPageSize.heightMm);
+  const sourceMargins = sourcePageMargins(validPageSize);
+  if (sourceMargins) Object.assign(renderer.EngravingRules, sourceMargins);
   await renderer.load(musicXml);
 
   let lastWidth = 0;

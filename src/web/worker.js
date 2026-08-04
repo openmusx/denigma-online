@@ -49,7 +49,12 @@ function readResult(resultPointer, includeOutputs) {
       pageSize: {
         widthMm: Module._denigma_result_part_page_width_mm(resultPointer, index),
         heightMm: Module._denigma_result_part_page_height_mm(resultPointer, index),
-        spatiumMm: Module._denigma_result_part_spatium_mm(resultPointer, index)
+        spatiumMm: Module._denigma_result_part_spatium_mm(resultPointer, index),
+        hasMargins: Module._denigma_result_part_has_page_margins(resultPointer, index) === 1,
+        marginTopSp: Module._denigma_result_part_page_margin_top_sp(resultPointer, index),
+        marginBottomSp: Module._denigma_result_part_page_margin_bottom_sp(resultPointer, index),
+        marginLeftSp: Module._denigma_result_part_page_margin_left_sp(resultPointer, index),
+        marginRightSp: Module._denigma_result_part_page_margin_right_sp(resultPointer, index)
       }
     });
   }
@@ -78,7 +83,12 @@ function readResult(resultPointer, includeOutputs) {
       scorePageSize: {
         widthMm: Module._denigma_result_score_page_width_mm(resultPointer),
         heightMm: Module._denigma_result_score_page_height_mm(resultPointer),
-        spatiumMm: Module._denigma_result_score_spatium_mm(resultPointer)
+        spatiumMm: Module._denigma_result_score_spatium_mm(resultPointer),
+        hasMargins: Module._denigma_result_score_has_page_margins(resultPointer) === 1,
+        marginTopSp: Module._denigma_result_score_page_margin_top_sp(resultPointer),
+        marginBottomSp: Module._denigma_result_score_page_margin_bottom_sp(resultPointer),
+        marginLeftSp: Module._denigma_result_score_page_margin_left_sp(resultPointer),
+        marginRightSp: Module._denigma_result_score_page_margin_right_sp(resultPointer)
       },
       diagnostics,
       parts,
