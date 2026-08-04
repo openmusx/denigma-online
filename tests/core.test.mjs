@@ -7,7 +7,7 @@ import {
   baseName,
   diagnosticReport,
   formatBytes,
-  isMusxFile,
+  isSupportedInputFile,
   outputFileName,
   safeNamePart,
   uniquifyFileNames,
@@ -15,14 +15,19 @@ import {
 } from '../src/web/core.js';
 import { versionAtLeast } from '../scripts/tooling.mjs';
 
-test('MUSX validation is case-insensitive', () => {
-  assert.equal(isMusxFile({ name: 'Score.MUSX' }), true);
-  assert.equal(isMusxFile({ name: 'Score.xml' }), false);
-  assert.equal(isMusxFile(undefined), false);
+test('supported input validation is case-insensitive and exact', () => {
+  assert.equal(isSupportedInputFile({ name: 'Score.MUSX' }), true);
+  assert.equal(isSupportedInputFile({ name: 'Score.ENIGMAXML' }), true);
+  assert.equal(isSupportedInputFile({ name: 'Score.EnigmaXML.ZIP' }), true);
+  assert.equal(isSupportedInputFile({ name: 'Score.xml' }), false);
+  assert.equal(isSupportedInputFile({ name: 'Score.enigmaxml.zip.txt' }), false);
+  assert.equal(isSupportedInputFile(undefined), false);
 });
 
 test('output names preserve Unicode and remove unsafe path characters', () => {
   assert.equal(baseName('Symphony.musx'), 'Symphony');
+  assert.equal(baseName('Symphony.enigmaxml'), 'Symphony');
+  assert.equal(baseName('Symphony.enigmaxml.zip'), 'Symphony');
   assert.equal(safeNamePart('Clarinét / B♭'), 'Clarinét _ B♭');
   assert.equal(outputFileName('Score.musx', 'musicxml', 'Flute', 0, 2), 'Score.Flute.musicxml');
   assert.equal(outputFileName('Score.musx', 'mnx', '', 0, 1), 'Score.mnx');

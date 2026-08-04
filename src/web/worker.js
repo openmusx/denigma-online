@@ -16,7 +16,7 @@ function stringAt(pointer) {
 
 function allocateBytes(bytes) {
   const pointer = Module._denigma_malloc(bytes.byteLength);
-  if (!pointer && bytes.byteLength) throw new Error('Unable to allocate memory for the MUSX file.');
+  if (!pointer && bytes.byteLength) throw new Error('Unable to allocate memory for the input file.');
   Module.HEAPU8.set(bytes, pointer);
   return pointer;
 }
@@ -75,7 +75,7 @@ function readResult(resultPointer, includeOutputs) {
 }
 
 function withInput(callback) {
-  if (!selectedBytes) throw new Error('No MUSX file is loaded.');
+  if (!selectedBytes) throw new Error('No input file is loaded.');
   const inputPointer = allocateBytes(selectedBytes);
   const namePointer = allocateString(selectedName);
   try {

@@ -27,8 +27,9 @@
         <legend>1. Finale file</legend>
         <div class="drop-zone" id="dropZone">
           <label for="file" class="label">Choose a .musx file</label>
-          <input id="file" type="file" accept=".musx,application/vnd.makemusic.notation" disabled>
+          <input id="file" type="file" accept=".musx,.enigmaxml,.zip,application/vnd.makemusic.notation,application/zip" disabled>
           <p class="help">You can also drop a MUSX file here.</p>
+          <p id="inputError" class="input-error" role="alert" hidden></p>
         </div>
         <div class="file-summary" id="inputSummary" hidden>
           <strong id="inputName"></strong>

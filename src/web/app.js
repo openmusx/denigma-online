@@ -6,7 +6,7 @@ import {
   baseName,
   diagnosticReport,
   formatBytes,
-  isMusxFile,
+  isSupportedInputFile,
   outputFileName,
   safeNamePart,
   uniquifyFileNames,
@@ -45,6 +45,19 @@ function shortCommit(value) {
 function setStatus(message, kind = 'info') {
   elements.status.textContent = message;
   elements.status.dataset.kind = kind;
+}
+
+function showInputError(message) {
+  elements.file.value = '';
+  elements.inputError.textContent = message;
+  elements.inputError.hidden = false;
+  elements.dropZone.classList.add('invalid');
+}
+
+function clearInputError() {
+  elements.inputError.textContent = '';
+  elements.inputError.hidden = true;
+  elements.dropZone.classList.remove('invalid');
 }
 
 function setBusy(value) {
@@ -233,16 +246,21 @@ function renderOutputs(rawOutputs) {
 
 async function loadFile(file) {
   elements.scoreName.textContent = 'Score';
-  if (!isMusxFile(file)) {
+  if (!isSupportedInputFile(file)) {
     clearOutputs();
     inputFile = undefined;
     parts = [];
     renderParts();
     elements.inputSummary.hidden = true;
-    setStatus('Choose a Finale .musx file.', 'error');
+    const message = file?.name?.toLowerCase().endsWith('.zip')
+      ? 'That ZIP file is not an EnigmaXML archive. Its filename must end in .enigmaxml.zip.'
+      : 'Choose a supported Finale file.';
+    showInputError(message);
+    setStatus('');
     setBusy(false);
     return;
   }
+  clearInputError();
   clearOutputs();
   inputFile = file;
   parts = [];
@@ -290,9 +308,9 @@ worker.addEventListener('message', ({ data }) => {
     diagnostics = data.diagnostics;
     if (!data.success) {
       inputFile = undefined;
-      elements.file.value = '';
       elements.inputSummary.hidden = true;
-      handleFailure('The selected file could not be read as a Finale MUSX file.', data.diagnostics);
+      showInputError('The selected file could not be read. Check that it is a valid Finale file.');
+      handleFailure('The selected file could not be read.', data.diagnostics);
       return;
     }
     elements.scoreName.textContent = data.scoreName || 'Score';
@@ -326,6 +344,7 @@ elements.file.addEventListener('change', () => {
   if (file) loadFile(file).catch((error) => {
     inputFile = undefined;
     elements.inputSummary.hidden = true;
+    showInputError(`Unable to read the file: ${error.message || error}`);
     handleFailure(`Unable to read the file: ${error.message || error}`);
   });
 });
@@ -344,6 +363,7 @@ elements.dropZone.addEventListener('drop', (event) => {
   if (file) loadFile(file).catch((error) => {
     inputFile = undefined;
     elements.inputSummary.hidden = true;
+    showInputError(`Unable to read the file: ${error.message || error}`);
     handleFailure(`Unable to read the file: ${error.message || error}`);
   });
 });
