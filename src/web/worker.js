@@ -45,7 +45,12 @@ function readResult(resultPointer, includeOutputs) {
     parts.push({
       id: Module._denigma_result_part_id(resultPointer, index),
       name: stringAt(Module._denigma_result_part_name(resultPointer, index)),
-      outputIndex: Module._denigma_result_part_output_index(resultPointer, index)
+      outputIndex: Module._denigma_result_part_output_index(resultPointer, index),
+      pageSize: {
+        widthMm: Module._denigma_result_part_page_width_mm(resultPointer, index),
+        heightMm: Module._denigma_result_part_page_height_mm(resultPointer, index),
+        spatiumMm: Module._denigma_result_part_spatium_mm(resultPointer, index)
+      }
     });
   }
 
@@ -57,7 +62,11 @@ function readResult(resultPointer, includeOutputs) {
       const dataPointer = Module._denigma_result_output_data(resultPointer, index);
       const size = Module._denigma_result_output_size(resultPointer, index);
       const data = Module.HEAPU8.slice(dataPointer, dataPointer + size).buffer;
-      outputs.push({ suggestedName: stringAt(Module._denigma_result_output_name(resultPointer, index)), data });
+      outputs.push({
+        suggestedName: stringAt(Module._denigma_result_output_name(resultPointer, index)),
+        outputIndex: Module._denigma_result_output_index(resultPointer, index),
+        data
+      });
       transfers.push(data);
     }
   }
@@ -66,6 +75,11 @@ function readResult(resultPointer, includeOutputs) {
     value: {
       success: Module._denigma_result_success(resultPointer) === 1,
       scoreName: stringAt(Module._denigma_result_score_name(resultPointer)),
+      scorePageSize: {
+        widthMm: Module._denigma_result_score_page_width_mm(resultPointer),
+        heightMm: Module._denigma_result_score_page_height_mm(resultPointer),
+        spatiumMm: Module._denigma_result_score_spatium_mm(resultPointer)
+      },
       diagnostics,
       parts,
       outputs

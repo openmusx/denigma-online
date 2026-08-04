@@ -5,10 +5,10 @@ AddType application/wasm .wasm
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Serve the precompressed WASM sidecar when the browser accepts gzip.
+    # Serve generated precompressed sidecars when the browser accepts gzip.
     RewriteCond %{HTTP:Accept-Encoding} (^|[,\s])gzip([,\s]|$) [NC]
     RewriteCond %{REQUEST_FILENAME}.gz -f
-    RewriteRule ^(.+\.wasm)$ $1.gz [L]
+    RewriteRule ^(.+\.(wasm|js))$ $1.gz [L]
 </IfModule>
 
 <IfModule mod_headers.c>
@@ -20,13 +20,18 @@ AddType application/wasm .wasm
         Header always set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
 
-    <FilesMatch "\.wasm(\.gz)?$">
+    <FilesMatch "\.(wasm|js)(\.gz)?$">
         Header always merge Vary "Accept-Encoding"
     </FilesMatch>
 
     <FilesMatch "\.wasm\.gz$">
         Header always set Content-Encoding "gzip"
         Header always set Content-Type "application/wasm"
+    </FilesMatch>
+
+    <FilesMatch "\.js\.gz$">
+        Header always set Content-Encoding "gzip"
+        Header always set Content-Type "text/javascript"
     </FilesMatch>
 
     Header always set X-Content-Type-Options "nosniff"

@@ -71,7 +71,7 @@ legend, .label { display: block; font-weight: 650; margin-bottom: .5rem; }
 .drop-zone input { max-width: 100%; }
 .input-error { color: var(--error); font-weight: 650; margin: .65rem 0 0; }
 
-.file-summary, .status-row, .output-list li, .actions {
+.file-summary, .status-row, .output-list li, .actions, .preview-heading {
   align-items: center;
   display: flex;
   gap: .75rem;
@@ -129,11 +129,21 @@ button.small { padding: .35rem .65rem; }
 .output-list li:last-child { border-bottom: 0; }
 .output-list li > span { min-width: 0; }
 .output-name { font-weight: 650; overflow-wrap: anywhere; }
+.output-item-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .diagnostic-list { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .88rem; }
 .diagnostic { border-left: 4px solid var(--border); margin: .5rem 0; overflow-wrap: anywhere; padding: .45rem .65rem; white-space: pre-wrap; }
 .diagnostic-warning { border-color: var(--warning); }
 .diagnostic-error { border-color: var(--error); }
 .actions { flex-wrap: wrap; justify-content: flex-start; margin-top: 1rem; }
+
+.score-preview { border-top: 1px solid var(--border); margin-top: 1.25rem; padding-top: 1rem; }
+.preview-heading { align-items: start; }
+.preview-heading h3 { margin: 0; }
+.preview-guidance { margin: .35rem 0 0; }
+.preview-heading .help { margin-bottom: 0; }
+.preview-canvas { background: #d5d8dc; border: 1px solid var(--border); border-radius: .4rem; margin-top: .75rem; max-width: calc(100vw - 2rem); min-height: 8rem; overflow: auto; padding: 1rem; scrollbar-gutter: stable; width: calc(100% + 1rem); }
+.preview-render-surface > div { margin-inline: auto; }
+.preview-license { color: var(--muted); font-size: .8rem; margin: .5rem 0 0; text-align: right; }
 
 details summary { cursor: pointer; font-weight: 650; }
 details p:last-child { margin-bottom: 0; }

@@ -28,6 +28,11 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /id="selectAllDocuments"[^>]*>Select all</);
   assert.match(html, /id="selectNoDocuments"[^>]*>Select none</);
   assert.match(html, /id="scoreName">Score</);
+  assert.match(html, /id="previewSection"[^>]*hidden/);
+  assert.match(html, /id="previewCanvas"[^>]*tabindex="0"[^>]*aria-label="Scrollable score preview"/);
+  assert.match(html, /Looks wrong\?<\/strong> Open the downloaded MusicXML in your music app before reporting a problem\./);
+  assert.match(html, /OpenSheetMusicDisplay 2\.1\.1/);
+  assert.match(html, /href="\.\/LICENSE-OSMD\.txt"/);
   assert.match(html, /github\.com\/rpatters1\/denigma\/issues/g);
   assert.doesNotMatch(html, /issues\/new/);
   assert.doesNotMatch(html, /https:\/\/(?!github\.com)/);
@@ -73,6 +78,38 @@ test('outputs download from real links so picker-less browsers keep working', as
   assert.doesNotMatch(saveAll, /createElement/);
 });
 
+test('MusicXML previews lazy-load OSMD and render the complete score', async () => {
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  const preview = await readFile(new URL('../src/web/preview.js', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/web/styles.css', import.meta.url), 'utf8');
+  const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
+  assert.match(app, /formatKey === 'musicxml'/);
+  assert.match(app, /preview\.textContent = 'Preview'/);
+  assert.match(app, /elements\.previewStatus\.textContent = 'Preview ready\.'/);
+  assert.doesNotMatch(app, /source page size|source page layout|spatium \(\$\{/);
+  assert.match(app, /import\(new URL\(PREVIEW_MODULE_URL, import\.meta\.url\)\.href\)/);
+  assert.match(app, /renderMusicXmlPreview\(elements\.previewCanvas, output\.blob, output\.pageSize\)/);
+  assert.match(preview, /document\.createElement\('script'\)/);
+  assert.match(preview, /renderSurface\.className = 'preview-render-surface'/);
+  assert.match(preview, /new OpenSheetMusicDisplay\(renderSurface/);
+  assert.match(preview, /newPageFromXML: true/);
+  assert.match(preview, /newSystemFromXML: true/);
+  assert.match(preview, /renderer\.setCustomPageFormat/);
+  assert.match(preview, /renderer\.Zoom = sourceZoom/);
+  assert.match(preview, /new ResizeObserver/);
+  assert.match(preview, /resizeObserver\?\.observe\(renderSurface\)/);
+  assert.match(styles, /scrollbar-gutter: stable/);
+  assert.match(styles, /width: calc\(100% \+ 1rem\)/);
+  assert.match(preview, /firstPage\.getBoundingClientRect\(\)\.height/);
+  assert.match(preview, /container\.style\.maxHeight = `\$\{previewHeight\}px`/);
+  assert.match(preview, /autoResize: false/);
+  assert.doesNotMatch(preview, /TextDecoder|DOMParser|page-width/);
+  assert.match(preview, /renderer\.render\(\)/);
+  assert.doesNotMatch(preview, /drawUpToPageNumber/);
+  assert.match(build, /opensheetmusicdisplay\.min\.js/);
+  assert.match(build, /LICENSE-OSMD\.txt/);
+});
+
 test('worker owns WASM conversion so the UI thread stays responsive', async () => {
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
@@ -81,6 +118,11 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.doesNotMatch(app, /issues\/new/);
   assert.match(worker, /_denigma_convert/);
   assert.match(worker, /_denigma_result_score_name/);
+  assert.match(worker, /_denigma_result_score_page_width_mm/);
+  assert.match(worker, /_denigma_result_score_spatium_mm/);
+  assert.match(worker, /_denigma_result_part_page_width_mm/);
+  assert.match(worker, /_denigma_result_part_spatium_mm/);
+  assert.match(worker, /_denigma_result_output_index/);
   assert.match(worker, /denigmaOnlineCommit: '__DENIGMA_ONLINE_COMMIT__'/);
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });
@@ -93,6 +135,7 @@ test('production builds include Apache caching and compressed WASM rules', async
   assert.match(apache, /max-age=31536000, immutable/);
   assert.match(apache, /Content-Encoding "gzip"/);
   assert.match(apache, /Content-Type "application\/wasm"/);
+  assert.match(apache, /Content-Type "text\/javascript"/);
   assert.match(apache, /Content-Security-Policy/);
   assert.match(apache, /'wasm-unsafe-eval' 'unsafe-eval'/);
 });

@@ -1,6 +1,7 @@
 # Build products
 /build-wasm/
 /dist/
+/node_modules/
 
 # Editor and OS files
 .DS_Store
