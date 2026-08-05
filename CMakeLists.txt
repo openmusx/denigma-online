@@ -13,11 +13,32 @@ include(FetchContent)
 # including FetchContent dependencies that establish independent directories.
 string(APPEND CMAKE_CXX_FLAGS " -fexceptions")
 
-set(DENIGMA_GIT_REPOSITORY "https://github.com/rpatters1/denigma.git" CACHE STRING
-    "Denigma repository used by FetchContent")
-set(DENIGMA_GIT_TAG "7e95231eb7ad7972ae56325a804fa21ff7db03ce" CACHE STRING
-    "Pinned Denigma commit, tag, or branch")
+# The pin lives in these plain variables so that editing it here always takes
+# effect. A cached DENIGMA_GIT_TAG would shadow the new value in an existing
+# build tree, which is why overrides use separate cache entries instead.
+set(DENIGMA_GIT_REPOSITORY_PIN "https://github.com/rpatters1/denigma.git")
+set(DENIGMA_GIT_TAG_PIN "bfae0dfbb18427f4316032629dba72daf2aefab0")
+
+set(DENIGMA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
+    "Override the pinned Denigma repository")
+set(DENIGMA_GIT_TAG_OVERRIDE "" CACHE STRING
+    "Override the pinned Denigma commit, tag, or branch")
 set(DENIGMA_SOURCE_DIR "" CACHE PATH "Optional local Denigma checkout")
+
+foreach(_denigma_pin GIT_REPOSITORY GIT_TAG)
+    if(DEFINED CACHE{DENIGMA_${_denigma_pin}})
+        # Left over from a build tree configured before the pin moved out of the
+        # cache, or passed with -D. Either way it no longer selects the revision.
+        message(WARNING "DENIGMA_${_denigma_pin} is no longer read from the cache; "
+            "use DENIGMA_${_denigma_pin}_OVERRIDE instead")
+        unset(DENIGMA_${_denigma_pin} CACHE)
+    endif()
+    if(DENIGMA_${_denigma_pin}_OVERRIDE)
+        set(DENIGMA_${_denigma_pin} "${DENIGMA_${_denigma_pin}_OVERRIDE}")
+    else()
+        set(DENIGMA_${_denigma_pin} "${DENIGMA_${_denigma_pin}_PIN}")
+    endif()
+endforeach()
 
 if(DENIGMA_SOURCE_DIR)
     get_filename_component(DENIGMA_SOURCE_DIR "${DENIGMA_SOURCE_DIR}" ABSOLUTE)
@@ -31,6 +52,32 @@ set(denigma_BUILD_TESTING OFF CACHE BOOL "Do not build Denigma tests" FORCE)
 set(denigma_BUILD_DOCS OFF CACHE BOOL "Do not build Denigma docs" FORCE)
 set(DENIGMA_CXX_STANDARD 20 CACHE STRING "Use Denigma's minimum supported C++ standard" FORCE)
 
+# FetchContent skips its populate step once the dependency has been downloaded, so
+# a changed revision only takes effect if the download and update stamps are
+# discarded first. A local checkout is never fetched, so it is left alone.
+set(_denigma_revision "${DENIGMA_GIT_REPOSITORY}@${DENIGMA_GIT_TAG}")
+if(NOT DENIGMA_SOURCE_DIR
+        AND DEFINED DENIGMA_POPULATED_REVISION
+        AND NOT "${DENIGMA_POPULATED_REVISION}" STREQUAL "${_denigma_revision}")
+    message(STATUS "Denigma revision changed to ${DENIGMA_GIT_TAG}; re-fetching")
+    set(_denigma_subbuild "${FETCHCONTENT_BASE_DIR}/denigma-subbuild")
+    file(GLOB_RECURSE _denigma_stamps
+        "${_denigma_subbuild}/denigma-populate-done"
+        "${_denigma_subbuild}/denigma-populate-update"
+        "${_denigma_subbuild}/denigma-populate-download"
+        "${_denigma_subbuild}/denigma-populate-gitclone-lastrun.txt"
+    )
+    if(_denigma_stamps)
+        file(REMOVE ${_denigma_stamps})
+    else()
+        # No stamps to invalidate (for example after a partial clean); drop the
+        # source tree so the clone step runs from scratch.
+        file(REMOVE_RECURSE "${FETCHCONTENT_BASE_DIR}/denigma-src")
+    endif()
+    unset(_denigma_stamps)
+    unset(_denigma_subbuild)
+endif()
+
 FetchContent_Declare(
     denigma
     GIT_REPOSITORY "${DENIGMA_GIT_REPOSITORY}"
@@ -38,6 +85,14 @@ FetchContent_Declare(
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(denigma)
+
+if(DENIGMA_SOURCE_DIR)
+    # Record the local checkout so that switching back to a fetched Denigma
+    # re-fetches rather than reusing a source tree of unknown revision.
+    set(_denigma_revision "local:${DENIGMA_SOURCE_DIR}")
+endif()
+set(DENIGMA_POPULATED_REVISION "${_denigma_revision}" CACHE INTERNAL
+    "Denigma source that populated this build tree")
 
 file(STRINGS "${denigma_SOURCE_DIR}/CMakeLists.txt" _denigma_project_line
     REGEX "^project\\(denigma VERSION [0-9]+\\.[0-9]+\\.[0-9]+\\)")
