@@ -74,8 +74,11 @@ that shell.
 
 ## Build
 
-The default build uses the Denigma revision pinned by `DENIGMA_GIT_TAG` in
-`CMakeLists.txt`.
+The default build uses the Denigma revision pinned by `DENIGMA_GIT_TAG_PIN` in
+`CMakeLists.txt`. Changing that pin re-fetches Denigma on the next configure of
+an existing build directory. To build a different revision without editing the
+pin, configure with `-DDENIGMA_GIT_TAG_OVERRIDE=<commit>` (and clear it with
+`-DDENIGMA_GIT_TAG_OVERRIDE=` to return to the pin).
 
 ```sh
 npm ci
@@ -274,8 +277,10 @@ load. Subsequent previews reuse the immutable cached renderer.
 ## Updating Denigma
 
 1. Choose and review a Denigma commit that contains the desired converter API.
-2. Change `DENIGMA_GIT_TAG` in `CMakeLists.txt` to the full commit hash.
-3. Configure a clean `build-wasm` directory and build `web_dist`.
+2. Change `DENIGMA_GIT_TAG_PIN` in `CMakeLists.txt` to the full commit hash.
+3. Configure `build-wasm` and build `web_dist`. The configure step detects the
+   changed pin and re-fetches Denigma, so a clean build directory is not
+   required.
 4. Run `npm test` and test all three formats with a MUSX containing linked
    parts, warnings, and playback tempo changes.
 5. Record the new WASM byte size in this README.
