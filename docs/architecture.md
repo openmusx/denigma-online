@@ -26,8 +26,9 @@ three format headers:
   `MultiOutputCallback` once for the score and/or each linked part.
 - `ConversionResult` contains typed diagnostics and marks error severity.
 - `CommonOptions::logCallback` receives info, warning, error, and verbose
-  messages. Verbose messages are always captured for diagnostic reports but
-  filtered out of the on-screen diagnostic list.
+  messages. All of them are captured for diagnostic reports, but only warnings
+  and errors appear in the on-screen diagnostic list; info and verbose messages
+  are report-only.
 
 Existing meaningful options are:
 

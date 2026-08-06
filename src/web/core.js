@@ -51,8 +51,10 @@ export function formatBytes(bytes) {
   return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
 }
 
+export const VISIBLE_SEVERITIES = Object.freeze(['warning', 'error']);
+
 export function visibleDiagnostics(diagnostics) {
-  return diagnostics.filter((item) => item.severity !== 'verbose');
+  return diagnostics.filter((item) => VISIBLE_SEVERITIES.includes(item.severity));
 }
 
 export function diagnosticReport({ denigmaVersion, denigmaCommit, denigmaOnlineCommit, buildVersion, format, options, diagnostics }) {
