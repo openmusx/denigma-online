@@ -76,6 +76,21 @@ output buffers before destroying the result. Input and result allocations are
 released on every success and error path. The page revokes generated object
 URLs before a new conversion and on `pagehide`.
 
+Denigma's public converter adapters take the MUSX archive as bytes and extract it
+on every call, which would mean re-inflating and re-deobfuscating the same file for
+the inspection and then again for each conversion. The wrapper instead extracts
+once into a module-level `CommandInputData` cache, keyed on the source name plus
+the input size and an FNV-1a hash of its bytes, and drives the `detail` entry
+points behind those adapters. A different file replaces the cached entry and
+releases the previous extraction. EnigmaXML output needs no converter at all: it
+is the cached primary buffer.
+
+The parsed `musx::dom` document is still built per call, and MusicXML generation
+still runs for every linked part even when only some are selected. Sharing a
+parsed document across calls needs a document-taking entry point that Denigma does
+not expose yet, and MusicXML parses with `PartVoicingPolicy::Apply` where
+inspection and MNX use `Ignore`, so one cached document cannot serve all three.
+
 The root CMake configuration enables Emscripten's `-fexceptions` at compile and
 link time before adding Denigma. This keeps exception handling consistent across
 the wrapper and all linked dependencies, allowing conversion failures to reach

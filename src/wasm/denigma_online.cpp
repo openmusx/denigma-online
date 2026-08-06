@@ -10,6 +10,7 @@
 #include <memory>
 #include <new>
 #include <optional>
+#include <ostream>
 #include <set>
 #include <span>
 #include <sstream>
@@ -19,14 +20,28 @@
 #include <utility>
 #include <vector>
 
-#include "denigma/formats/enigmaxml.h"
-#include "denigma/formats/mnx.h"
-#include "denigma/formats/musicxml.h"
 #include "denigma/io/random_access_reader.h"
 #include "core/denigma.h"
 #include "core/musx_reader.h"
 #include "formats/enigmaxml/enigmaxml.h"
 #include "utils/ziputils.h"
+
+// Denigma's public converter adapters extract the MUSX archive on every call. These
+// are the entry points behind those adapters, so a single extraction can serve an
+// inspection and every conversion that follows. They are declared in Denigma's
+// internal src/formats/musicxml/musicxml.h and src/formats/mnx/mnx.h, but those
+// headers pull in mx and mnxdom, which are private dependencies of the Denigma
+// libraries this target links. Declaring them here keeps the wrapper's build off
+// that graph; a signature change upstream surfaces as a link error.
+namespace denigma::formats::musicxml::detail {
+void convert(const CommandInputData& inputData,
+             const DenigmaContext& denigmaContext,
+             const MultiOutputCallback& outputCallback);
+} // namespace denigma::formats::musicxml::detail
+
+namespace denigma::formats::mnx::detail {
+void exportJson(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+} // namespace denigma::formats::mnx::detail
 
 namespace {
 
@@ -98,15 +113,9 @@ void addDiagnostic(OnlineResult& result, denigma::MessageSeverity severity, std:
     result.diagnostics.push_back({ severity, std::move(message) });
 }
 
-denigma::CommonOptions makeCommonOptions(OnlineResult& result, const char* sourceName)
+const char* fallbackSourceName(InputFormat format)
 {
-    denigma::CommonOptions options;
-    options.sourceName = sourceName ? sourceName : "browser.musx";
-    options.verbose = true;
-    options.logCallback = [&result](denigma::MessageSeverity severity, std::string_view message) {
-        addDiagnostic(result, severity, std::string(message));
-    };
-    return options;
+    return format == InputFormat::Musx ? "browser.musx" : "browser.enigmaxml";
 }
 
 denigma::DenigmaContext makeInputContext(OnlineResult& result, const char* sourceName, const char* fallbackName)
@@ -117,6 +126,21 @@ denigma::DenigmaContext makeInputContext(OnlineResult& result, const char* sourc
     context.logCallback = [&result](denigma::MessageSeverity severity, std::string_view message) {
         addDiagnostic(result, severity, std::string(message));
     };
+    return context;
+}
+
+// Mirrors makeMusicXmlContext()/makeMnxContext() in Denigma's converter adapters
+// (src/formats/*/*_converter.cpp). Those adapters re-extract the archive on every
+// call, so this wrapper drives the detail entry points with cached input data and
+// assembles the equivalent context here. Validation stays on and quiet stays off,
+// matching the CommonOptions defaults the adapters map from.
+denigma::DenigmaContext makeConversionContext(OnlineResult& result,
+                                              const char* sourceName,
+                                              InputFormat format,
+                                              denigma::ConversionResult& conversionResult)
+{
+    auto context = makeInputContext(result, sourceName, fallbackSourceName(format));
+    context.conversionResult = &conversionResult;
     return context;
 }
 
@@ -152,6 +176,51 @@ denigma::CommandInputData readInputData(std::span<const std::byte> bytes,
         return { denigma::Buffer(xml.begin(), xml.end()), std::nullopt, {} };
     }
     return { copyBytes(bytes), std::nullopt, {} };
+}
+
+// Extracting a MUSX archive inflates the zip and deobfuscates the EnigmaXML inside
+// it. The browser works the same file over and over -- one inspection, then a
+// conversion for every format change, part selection, and retry -- so hold the
+// extracted data and reuse it until a different file arrives.
+struct InputCache
+{
+    std::string sourceName;
+    std::size_t size{};
+    std::uint64_t hash{};
+    denigma::CommandInputData data;
+    bool valid{};
+};
+
+InputCache inputCache;
+
+std::uint64_t contentHash(std::span<const std::byte> bytes)
+{
+    std::uint64_t hash = 14695981039346656037ull; // FNV-1a
+    for (const std::byte value : bytes) {
+        hash ^= static_cast<std::uint64_t>(value);
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+const denigma::CommandInputData& cachedInputData(std::span<const std::byte> bytes,
+                                                 InputFormat format,
+                                                 const denigma::DenigmaContext& context,
+                                                 const char* sourceName)
+{
+    const std::string name = sourceName ? sourceName : "";
+    const auto hash = contentHash(bytes);
+    if (inputCache.valid && inputCache.size == bytes.size() && inputCache.hash == hash
+        && inputCache.sourceName == name) {
+        return inputCache.data;
+    }
+    inputCache = {}; // release the previous extraction before allocating the next one
+    inputCache.data = readInputData(bytes, format, context);
+    inputCache.sourceName = name;
+    inputCache.size = bytes.size();
+    inputCache.hash = hash;
+    inputCache.valid = true;
+    return inputCache.data;
 }
 
 std::span<const std::byte> primaryBytes(const denigma::CommandInputData& input)
@@ -226,9 +295,9 @@ void finishConversion(OnlineResult& result, const denigma::ConversionResult& con
 
 void inspectInput(OnlineResult& result, std::span<const std::byte> bytes, const char* sourceName, InputFormat format)
 {
-    auto context = makeInputContext(result, sourceName, "browser.musx");
+    auto context = makeInputContext(result, sourceName, fallbackSourceName(format));
 
-    auto input = readInputData(bytes, format, context);
+    const auto& input = cachedInputData(bytes, format, context, sourceName);
     auto document = denigma::createMusxDocument<denigma::MusxReader>(input, context);
     auto parts = document->getOthers()->getArray<musx::dom::others::PartDefinition>(musx::dom::SCORE_PARTID);
     result.scorePageSize = pageSizeForPart(document, musx::dom::SCORE_PARTID);
@@ -268,12 +337,12 @@ void convertMusicXml(OnlineResult& result,
                      const int* selectedOutputs,
                      std::size_t selectedCount)
 {
-    denigma::formats::musicxml::Options options;
-    options.common = makeCommonOptions(result, sourceName);
-    options.includeTempoTool = includeTempo;
-    options.allPartsAndScore = true;
+    denigma::ConversionResult conversionResult;
+    auto context = makeConversionContext(result, sourceName, inputFormat, conversionResult);
+    context.includeTempoTool = includeTempo;
+    context.allPartsAndScore = true;
     if (cueLayer > 0) {
-        options.cueLayer = cueLayer;
+        context.cueLayer = cueLayer;
     }
 
     const std::set<int> selected(selectedOutputs, selectedOutputs + selectedCount);
@@ -284,17 +353,8 @@ void convertMusicXml(OnlineResult& result,
         }
         ++outputIndex;
     };
-    denigma::ConversionResult conversionResult;
-    if (inputFormat == InputFormat::Musx) {
-        const denigma::BufferRandomAccessReader reader(bytes);
-        const denigma::formats::musicxml::MusxToMusicXmlMultiOutputConverter converter;
-        conversionResult = converter.convert(reader, outputCallback, options);
-    } else {
-        auto context = makeInputContext(result, sourceName, "browser.enigmaxml");
-        const auto input = readInputData(bytes, inputFormat, context);
-        const denigma::formats::musicxml::EnigmaXmlToMusicXmlMultiOutputConverter converter;
-        conversionResult = converter.convert(primaryBytes(input), outputCallback, options);
-    }
+    const auto& input = cachedInputData(bytes, inputFormat, context, sourceName);
+    denigma::formats::musicxml::detail::convert(input, context, outputCallback);
     finishConversion(result, conversionResult);
 }
 
@@ -307,27 +367,19 @@ void convertMnx(OnlineResult& result,
                 int indentSpaces,
                 int cueLayer)
 {
-    denigma::formats::mnx::Options options;
-    options.common = makeCommonOptions(result, sourceName);
-    options.includeTempoTool = includeTempo;
-    options.splitInstruments = splitInstruments;
-    options.indentSpaces = indentSpaces < 0 ? std::nullopt : std::optional<int>(indentSpaces);
+    denigma::ConversionResult conversionResult;
+    auto context = makeConversionContext(result, sourceName, inputFormat, conversionResult);
+    context.includeTempoTool = includeTempo;
+    context.mnxSplitInstruments = splitInstruments;
+    context.indentSpaces = indentSpaces < 0 ? std::nullopt : std::optional<int>(indentSpaces);
     if (cueLayer > 0) {
-        options.cueLayer = cueLayer;
+        context.cueLayer = cueLayer;
     }
 
     std::ostringstream output;
-    denigma::ConversionResult conversionResult;
-    if (inputFormat == InputFormat::Musx) {
-        const denigma::BufferRandomAccessReader reader(bytes);
-        const denigma::formats::mnx::MusxToMnxJsonConverter converter;
-        conversionResult = converter.convert(reader, output, options);
-    } else {
-        auto context = makeInputContext(result, sourceName, "browser.enigmaxml");
-        const auto input = readInputData(bytes, inputFormat, context);
-        const denigma::formats::mnx::EnigmaXmlToMnxJsonConverter converter;
-        conversionResult = converter.convert(primaryBytes(input), output, options);
-    }
+    const denigma::MusxLoggerScope musxLogger(denigma::makeMusxLogCallback(context));
+    const auto& input = cachedInputData(bytes, inputFormat, context, sourceName);
+    denigma::formats::mnx::detail::exportJson(output, input, context);
     if (!conversionResult.hasError()) {
         appendOutput(result, {}, output.str());
     }
@@ -339,26 +391,14 @@ void convertEnigmaXml(OnlineResult& result,
                       const char* sourceName,
                       InputFormat inputFormat)
 {
-    if (inputFormat != InputFormat::Musx) {
-        auto context = makeInputContext(result, sourceName, "browser.enigmaxml");
-        const auto input = readInputData(bytes, inputFormat, context);
-        appendOutput(result, {}, primaryBytes(input));
-        if (input.primaryBuffer.empty()) {
-            addDiagnostic(result, denigma::MessageSeverity::Error, "The EnigmaXML input is empty.");
-        }
-        return;
+    // Denigma's MUSX-to-EnigmaXML converter writes exactly the primary buffer that
+    // extraction already produced, so both input formats reduce to the cached data.
+    auto context = makeInputContext(result, sourceName, fallbackSourceName(inputFormat));
+    const auto& input = cachedInputData(bytes, inputFormat, context, sourceName);
+    appendOutput(result, {}, primaryBytes(input));
+    if (input.primaryBuffer.empty()) {
+        addDiagnostic(result, denigma::MessageSeverity::Error, "The EnigmaXML input is empty.");
     }
-
-    const denigma::BufferRandomAccessReader reader(bytes);
-    denigma::formats::enigmaxml::Options options;
-    options.common = makeCommonOptions(result, sourceName);
-    std::ostringstream output;
-    denigma::formats::enigmaxml::MusxToEnigmaXmlConverter converter;
-    const auto conversionResult = converter.convert(reader, output, options);
-    if (!conversionResult.hasError()) {
-        appendOutput(result, {}, output.str());
-    }
-    finishConversion(result, conversionResult);
 }
 
 template <typename Callback>
