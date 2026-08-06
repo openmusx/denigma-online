@@ -74,13 +74,14 @@ test('diagnostic reports contain reproducibility data and privacy notice', () =>
   assert.match(report, /Source file contents are not included/);
 });
 
-test('verbose diagnostics are excluded from the on-screen diagnostic list', () => {
+test('verbose and info diagnostics are excluded from the on-screen diagnostic list', () => {
   const diagnostics = [
-    { severity: 'info', message: 'Visible information' },
+    { severity: 'info', message: 'Report-only information' },
     { severity: 'verbose', message: 'Report-only detail' },
-    { severity: 'warning', message: 'Visible warning' }
+    { severity: 'warning', message: 'Visible warning' },
+    { severity: 'error', message: 'Visible error' }
   ];
-  assert.deepEqual(visibleDiagnostics(diagnostics), [diagnostics[0], diagnostics[2]]);
+  assert.deepEqual(visibleDiagnostics(diagnostics), [diagnostics[2], diagnostics[3]]);
 });
 
 test('tool version checks compare semantic numeric components', () => {

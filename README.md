@@ -221,8 +221,9 @@ sent over the network.
 
 The diagnostic report contains the Denigma version and commit, the Denigma
 Online commit and build hash, output format, settings, and Denigma messages.
-Verbose messages are always included in the report but kept out of the
-on-screen diagnostic list. The report never embeds source file contents.
+Verbose and info messages are always included in the report but kept out of the
+on-screen diagnostic list, which shows only warnings and errors. The report
+never embeds source file contents.
 Users can review the copied text before putting it in an issue.
 
 ## Browser support

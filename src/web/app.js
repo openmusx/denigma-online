@@ -402,7 +402,7 @@ worker.addEventListener('message', ({ data }) => {
     parts = data.parts;
     renderParts();
     renderDiagnostics(diagnostics);
-    if (diagnostics.length) elements.results.hidden = false;
+    if (visibleDiagnostics(diagnostics).length) elements.results.hidden = false;
     setStatus(`${elements.inputName.textContent} is ready. Choose a format and convert.`);
     setBusy(false);
     return;
