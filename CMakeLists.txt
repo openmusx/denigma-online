@@ -17,7 +17,7 @@ string(APPEND CMAKE_CXX_FLAGS " -fexceptions")
 # effect. A cached DENIGMA_GIT_TAG would shadow the new value in an existing
 # build tree, which is why overrides use separate cache entries instead.
 set(DENIGMA_GIT_REPOSITORY_PIN "https://github.com/rpatters1/denigma.git")
-set(DENIGMA_GIT_TAG_PIN "bfae0dfbb18427f4316032629dba72daf2aefab0")
+set(DENIGMA_GIT_TAG_PIN "6030332724cfa1bb1a76a3e278c0528001d61288")
 
 set(DENIGMA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
     "Override the pinned Denigma repository")
