@@ -551,6 +551,13 @@ elements.printPreview.addEventListener('click', () => {
   window.print();
 });
 
+// Hint bubbles show on hover/focus via CSS; Escape dismisses one opened by keyboard.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  const toggle = document.activeElement;
+  if (toggle instanceof HTMLElement && toggle.classList.contains('hint-toggle')) toggle.blur();
+});
+
 elements.reportIssue.href = ISSUE_URL;
 elements.failureIssue.href = ISSUE_URL;
 elements.aboutIssue.href = ISSUE_URL;

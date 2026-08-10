@@ -61,30 +61,60 @@
           <div id="linkedParts"></div>
           <p id="noParts" class="help">No linked parts found in this file.</p>
         </div>
-        <label class="check-row"><input id="musicxmlTempo" type="checkbox"> <span>Include playback tempo changes</span></label>
-        <label class="check-row"><input id="musicxmlAllFonts" type="checkbox"> <span>All source fonts are available</span></label>
-        <p class="help">Preserves text faithfully at the expense of portability; may be useful when opening the MusicXML on the same machine that created the MUSX.</p>
-        <label for="musicxmlCueLayer" class="label">Cue layer</label>
-        <select id="musicxmlCueLayer">
+        <div class="check-row">
+          <input id="musicxmlTempo" type="checkbox" aria-describedby="musicxmlTempoHint">
+          <label for="musicxmlTempo">Include playback tempo changes</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Include playback tempo changes”">?</button>
+            <span id="musicxmlTempoHint" role="tooltip" class="hint-bubble">Exports tempo changes created with the Tempo Tool or the JW Tempo plugin.</span>
+          </span>
+        </div>
+        <div class="check-row">
+          <input id="musicxmlAllFonts" type="checkbox" aria-describedby="musicxmlAllFontsHint">
+          <label for="musicxmlAllFonts">All source fonts are available</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “All source fonts are available”">?</button>
+            <span id="musicxmlAllFontsHint" role="tooltip" class="hint-bubble">Exports text fonts and styling faithfully at the expense of portability. This option may be useful when opening the converted file on the same machine that created the source MUSX.</span>
+          </span>
+        </div>
+        <div class="label-row">
+          <label for="musicxmlCueLayer" class="label">Cue layer</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Cue layer”">?</button>
+            <span id="musicxmlCueLayerHint" role="tooltip" class="hint-bubble">Choose a layer only if you know that it is used exclusively for cues in this document. Other layers may still be interpreted as cues.</span>
+          </span>
+        </div>
+        <select id="musicxmlCueLayer" aria-describedby="musicxmlCueLayerHint">
           <option value="0">Automatic detection</option>
           <option value="1">Layer 1</option><option value="2">Layer 2</option>
           <option value="3">Layer 3</option><option value="4">Layer 4</option>
         </select>
-        <p class="help">Choose a layer only if you know that it is used exclusively for cues in this document. Other layers may still be interpreted as cues.</p>
       </fieldset>
 
       <fieldset id="mnxOptions" hidden>
         <legend>3. MNX options</legend>
-        <label class="check-row"><input id="mnxTempo" type="checkbox"> <span>Include playback tempo changes</span></label>
+        <div class="check-row">
+          <input id="mnxTempo" type="checkbox" aria-describedby="mnxTempoHint">
+          <label for="mnxTempo">Include playback tempo changes</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Include playback tempo changes”">?</button>
+            <span id="mnxTempoHint" role="tooltip" class="hint-bubble">Exports tempo changes created with the Tempo Tool or the JW Tempo plugin.</span>
+          </span>
+        </div>
         <label class="check-row"><input id="mnxSplit" type="checkbox"> <span>Split instruments into separate MNX parts</span></label>
         <label class="check-row"><input id="mnxPretty" type="checkbox" checked> <span>Pretty-print JSON</span></label>
-        <label for="mnxCueLayer" class="label">Cue layer to omit</label>
-        <select id="mnxCueLayer">
+        <div class="label-row">
+          <label for="mnxCueLayer" class="label">Cue layer to omit</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Cue layer to omit”">?</button>
+            <span id="mnxCueLayerHint" role="tooltip" class="hint-bubble">MNX does not currently represent cues. Denigma reports omitted cues in diagnostics.</span>
+          </span>
+        </div>
+        <select id="mnxCueLayer" aria-describedby="mnxCueLayerHint">
           <option value="0">Automatic detection</option>
           <option value="1">Layer 1</option><option value="2">Layer 2</option>
           <option value="3">Layer 3</option><option value="4">Layer 4</option>
         </select>
-        <p class="help">MNX does not currently represent cues. Denigma reports omitted cues in diagnostics.</p>
       </fieldset>
 
       <fieldset id="enigmaxmlOptions" hidden>

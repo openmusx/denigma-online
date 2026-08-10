@@ -92,6 +92,53 @@ select, input[type="number"] {
 
 .check-row { align-items: start; display: flex; gap: .55rem; margin: .45rem 0; }
 .check-row input { margin-top: .3rem; }
+.check-row label { font-weight: inherit; margin: 0; }
+.label-row { align-items: baseline; display: flex; gap: .4rem; }
+.label-row .label { margin-bottom: .5rem; }
+/* Hint bubbles are anchored to the row so they can never overflow the panel.
+   They hide with opacity, not display/visibility, so the aria-describedby text
+   they hold stays in the accessibility tree while the bubble is not shown. */
+.check-row, .label-row { position: relative; }
+
+.hint { display: inline-flex; }
+.hint-toggle {
+  align-items: center;
+  background: transparent;
+  border-color: var(--border);
+  border-radius: 50%;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: .75rem;
+  height: 1.15rem;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 1.15rem;
+}
+.check-row .hint-toggle { margin-top: .2rem; }
+.hint-toggle:hover { background: var(--background); border-color: var(--accent); color: var(--accent); }
+.hint-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .4rem;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  color: var(--text);
+  font-size: .88rem;
+  font-weight: 400;
+  left: 0;
+  line-height: 1.4;
+  max-width: min(26rem, 100%);
+  opacity: 0;
+  padding: .5rem .65rem;
+  pointer-events: none;
+  position: absolute;
+  top: calc(100% + .2rem);
+  transition: opacity .12s;
+  width: max-content;
+  z-index: 5;
+}
+.hint:hover .hint-bubble, .hint:focus-within .hint-bubble { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .hint-bubble { transition: none; } }
 .documents { border-left: 3px solid var(--border); padding-left: .9rem; }
 .documents-heading { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
 .documents-heading .label { margin: 0; }
