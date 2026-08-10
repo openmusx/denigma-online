@@ -133,6 +133,7 @@ function convert(options) {
         namePointer,
         options.format,
         options.includeTempo ? 1 : 0,
+        options.allFontsAvailable ? 1 : 0,
         options.splitInstruments ? 1 : 0,
         options.indentSpaces,
         options.cueLayer,

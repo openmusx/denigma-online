@@ -34,7 +34,7 @@ Existing meaningful options are:
 
 | Format | Denigma options exposed by the site |
 | --- | --- |
-| MusicXML | `includeTempoTool`, `cueLayer`, score/linked-part selection |
+| MusicXML | `includeTempoTool`, `allFontsAvailable`, `cueLayer`, score/linked-part selection |
 | MNX | `includeTempoTool`, `splitInstruments`, `indentSpaces`, `cueLayer` |
 | EnigmaXML | None |
 

@@ -48,6 +48,20 @@ test('MusicXML documents can be selected or cleared as a group', async () => {
   assert.match(app, /documents\.addEventListener\('change'/);
 });
 
+test('MusicXML can preserve text when all source fonts are available', async () => {
+  const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
+  const wasm = await readFile(new URL('../src/wasm/denigma_online.cpp', import.meta.url), 'utf8');
+
+  assert.match(html, /id="musicxmlAllFonts"/);
+  assert.match(html, /Preserves text faithfully at the expense of portability/);
+  assert.match(html, /may be useful when opening the MusicXML on the same machine that created the MUSX/);
+  assert.match(app, /formatKey === 'musicxml' && elements\.musicxmlAllFonts\.checked/);
+  assert.match(worker, /options\.allFontsAvailable \? 1 : 0/);
+  assert.match(wasm, /context\.allFontsAvailable = allFontsAvailable/);
+});
+
 test('invalid ZIP input is rejected beside the picker and clears its selection', async () => {
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const rejection = app.slice(app.indexOf('if (!isSupportedInputFile(file))'), app.indexOf('clearInputError();'));

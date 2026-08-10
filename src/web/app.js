@@ -197,6 +197,7 @@ function conversionOptions() {
   return {
     format: FORMATS[formatKey].id,
     includeTempo: formatKey === 'musicxml' ? elements.musicxmlTempo.checked : elements.mnxTempo.checked,
+    allFontsAvailable: formatKey === 'musicxml' && elements.musicxmlAllFonts.checked,
     splitInstruments: formatKey === 'mnx' && elements.mnxSplit.checked,
     indentSpaces: formatKey === 'mnx' && elements.mnxPretty.checked ? 2 : -1,
     cueLayer: Number(cueSelect?.value || 0),
@@ -213,7 +214,10 @@ function reportOptions(options) {
     'Include playback tempo changes': options.includeTempo,
     'Cue layer': options.cueLayer || 'Automatic'
   };
-  if (formatKey === 'musicxml') result.Documents = options.selectedOutputs.join(', ');
+  if (formatKey === 'musicxml') {
+    result['All source fonts are available'] = options.allFontsAvailable;
+    result.Documents = options.selectedOutputs.join(', ');
+  }
   if (formatKey === 'mnx') {
     result['Split instruments into separate MNX parts'] = options.splitInstruments;
     result['Pretty-print JSON'] = options.indentSpaces >= 0;
