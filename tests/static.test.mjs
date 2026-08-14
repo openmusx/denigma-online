@@ -61,6 +61,32 @@ test('MusicXML can preserve text when all source fonts are available', async () 
   assert.match(wasm, /context\.allFontsAvailable = allFontsAvailable/);
 });
 
+test('MusicXML can preserve Finale whole-rest positions', async () => {
+  const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
+  const wasm = await readFile(new URL('../src/wasm/denigma_online.cpp', import.meta.url), 'utf8');
+
+  assert.match(html, /id="musicxmlFinaleRestPosition"[^>]*aria-describedby="musicxmlFinaleRestPositionHint"/);
+  assert.doesNotMatch(html, /id="musicxmlFinaleRestPosition"[^>]*checked/);
+  assert.match(html, /id="musicxmlFinaleRestPositionHint" role="tooltip" class="hint-bubble">[^<]{20,}</);
+  assert.match(app, /useFinaleRestPosition: formatKey === 'musicxml' && elements\.musicxmlFinaleRestPosition\.checked/);
+  assert.match(worker, /options\.useFinaleRestPosition \? 1 : 0/);
+  assert.match(wasm, /context\.useFinaleRestPosition = useFinaleRestPosition/);
+});
+
+test('conversion preferences are stored locally without cookies', async () => {
+  const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /conversion preferences may be saved in this browser/);
+  assert.match(app, /const SETTINGS_STORAGE_KEY = 'denigma-online\.settings\.v1'/);
+  assert.match(app, /localStorage\.setItem\(SETTINGS_STORAGE_KEY/);
+  assert.match(app, /localStorage\.getItem\(SETTINGS_STORAGE_KEY/);
+  assert.match(app, /restoreSettings\(\);/);
+  assert.doesNotMatch(app, /document\.cookie/);
+});
+
 test('every option hint is described once and reachable by assistive technology', async () => {
   const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
   const css = await readFile(new URL('../src/web/styles.css', import.meta.url), 'utf8');

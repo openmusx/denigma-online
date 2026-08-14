@@ -334,6 +334,7 @@ void convertMusicXml(OnlineResult& result,
                      InputFormat inputFormat,
                      bool includeTempo,
                      bool allFontsAvailable,
+                     bool useFinaleRestPosition,
                      int cueLayer,
                      const int* selectedOutputs,
                      std::size_t selectedCount)
@@ -342,6 +343,7 @@ void convertMusicXml(OnlineResult& result,
     auto context = makeConversionContext(result, sourceName, inputFormat, conversionResult);
     context.includeTempoTool = includeTempo;
     context.allFontsAvailable = allFontsAvailable;
+    context.useFinaleRestPosition = useFinaleRestPosition;
     context.allPartsAndScore = true;
     if (cueLayer > 0) {
         context.cueLayer = cueLayer;
@@ -443,6 +445,7 @@ OnlineResult* denigma_convert(const std::uint8_t* data,
                            int format,
                            int includeTempo,
                            int allFontsAvailable,
+                           int useFinaleRestPosition,
                            int splitInstruments,
                            int indentSpaces,
                            int cueLayer,
@@ -458,7 +461,7 @@ OnlineResult* denigma_convert(const std::uint8_t* data,
                 throw std::invalid_argument("Select the score or at least one linked part.");
             }
             convertMusicXml(result, bytes, sourceName, sourceFormat, includeTempo != 0,
-                            allFontsAvailable != 0, cueLayer, selectedOutputs, selectedCount);
+                            allFontsAvailable != 0, useFinaleRestPosition != 0, cueLayer, selectedOutputs, selectedCount);
             break;
         case 1:
             convertMnx(result, bytes, sourceName, sourceFormat, includeTempo != 0, splitInstruments != 0, indentSpaces, cueLayer);

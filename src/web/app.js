@@ -15,6 +15,7 @@ import {
 import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
 
 const ISSUE_URL = 'https://github.com/rpatters1/denigma/issues';
+const SETTINGS_STORAGE_KEY = 'denigma-online.settings.v1';
 const PREVIEW_MODULE_URL = '__PREVIEW_MODULE_URL__';
 const canPickSaveFile = 'showSaveFilePicker' in window;
 const canPickDirectory = 'showDirectoryPicker' in window;
@@ -139,6 +140,46 @@ function showFormatOptions() {
   setBusy(busy);
 }
 
+function settingsSnapshot() {
+  return {
+    format: elements.format.value,
+    musicxmlTempo: elements.musicxmlTempo.checked,
+    musicxmlAllFonts: elements.musicxmlAllFonts.checked,
+    musicxmlFinaleRestPosition: elements.musicxmlFinaleRestPosition.checked,
+    musicxmlCueLayer: elements.musicxmlCueLayer.value,
+    mnxTempo: elements.mnxTempo.checked,
+    mnxSplit: elements.mnxSplit.checked,
+    mnxPretty: elements.mnxPretty.checked,
+    mnxCueLayer: elements.mnxCueLayer.value
+  };
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settingsSnapshot()));
+  } catch {
+    // Storage may be disabled or unavailable in private/embedded contexts.
+  }
+}
+
+function restoreSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null');
+    if (!saved || typeof saved !== 'object') return;
+    if (Object.hasOwn(FORMATS, saved.format)) elements.format.value = saved.format;
+    for (const id of ['musicxmlTempo', 'musicxmlAllFonts', 'musicxmlFinaleRestPosition', 'mnxTempo', 'mnxSplit', 'mnxPretty']) {
+      if (typeof saved[id] === 'boolean') elements[id].checked = saved[id];
+    }
+    for (const id of ['musicxmlCueLayer', 'mnxCueLayer']) {
+      if (typeof saved[id] === 'string' && Array.from(elements[id].options, (option) => option.value).includes(saved[id])) {
+        elements[id].value = saved[id];
+      }
+    }
+  } catch {
+    // Ignore malformed or unavailable storage and retain the HTML defaults.
+  }
+}
+
 function makePartControl(part) {
   const label = document.createElement('label');
   label.className = 'check-row';
@@ -198,6 +239,7 @@ function conversionOptions() {
     format: FORMATS[formatKey].id,
     includeTempo: formatKey === 'musicxml' ? elements.musicxmlTempo.checked : elements.mnxTempo.checked,
     allFontsAvailable: formatKey === 'musicxml' && elements.musicxmlAllFonts.checked,
+    useFinaleRestPosition: formatKey === 'musicxml' && elements.musicxmlFinaleRestPosition.checked,
     splitInstruments: formatKey === 'mnx' && elements.mnxSplit.checked,
     indentSpaces: formatKey === 'mnx' && elements.mnxPretty.checked ? 2 : -1,
     cueLayer: Number(cueSelect?.value || 0),
@@ -216,6 +258,7 @@ function reportOptions(options) {
   };
   if (formatKey === 'musicxml') {
     result['All source fonts are available'] = options.allFontsAvailable;
+    result['Use Finale rest positions'] = options.useFinaleRestPosition;
     result.Documents = options.selectedOutputs.join(', ');
   }
   if (formatKey === 'mnx') {
@@ -460,7 +503,10 @@ elements.dropZone.addEventListener('drop', (event) => {
 elements.format.addEventListener('change', () => {
   clearOutputs();
   showFormatOptions();
+  saveSettings();
 });
+elements.musicxmlOptions.addEventListener('change', saveSettings);
+elements.mnxOptions.addEventListener('change', saveSettings);
 
 elements.documents.addEventListener('change', ({ target }) => {
   if (!target.matches('input[name="document"]')) return;
@@ -562,5 +608,6 @@ elements.reportIssue.href = ISSUE_URL;
 elements.failureIssue.href = ISSUE_URL;
 elements.aboutIssue.href = ISSUE_URL;
 window.addEventListener('pagehide', revokeObjectUrls);
+restoreSettings();
 showFormatOptions();
 setBusy(false);
