@@ -18,7 +18,7 @@
     <aside class="preview-notice" aria-label="Technology preview">
       <strong>Technology preview:</strong> Denigma Online is a work in progress. It may not convert every score correctly yet, so please review exported files before relying on them. Feedback is welcome.
     </aside>
-    <p class="privacy"><strong>Private by design:</strong> your score stays on this computer. Conversion happens entirely in your browser, and your document data is never uploaded in any format.</p>
+    <p class="privacy"><strong>Private by design:</strong> your score stays on this computer. Conversion happens entirely in your browser, and your document data is never uploaded in any format. Your conversion preferences may be saved in this browser for next time.</p>
 
     <section class="panel" aria-labelledby="convertHeading">
       <h2 id="convertHeading">Convert a file</h2>
@@ -75,6 +75,14 @@
           <span class="hint">
             <button type="button" class="hint-toggle" aria-label="More about “All source fonts are available”">?</button>
             <span id="musicxmlAllFontsHint" role="tooltip" class="hint-bubble">Exports text fonts and styling faithfully at the expense of portability. This option may be useful when opening the converted file on the same machine that created the source MUSX.</span>
+          </span>
+        </div>
+        <div class="check-row">
+          <input id="musicxmlFinaleRestPosition" type="checkbox" aria-describedby="musicxmlFinaleRestPositionHint">
+          <label for="musicxmlFinaleRestPosition">Use Finale rest positions</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Use Finale rest positions”">?</button>
+            <span id="musicxmlFinaleRestPositionHint" role="tooltip" class="hint-bubble">Preserves Finale's original position for frozen whole rests. This may improve compatibility with MuseScore 4. Leave it off for SMuFL positioning, which is preferred by Dorico and may be required by future importers.</span>
           </span>
         </div>
         <div class="label-row">
