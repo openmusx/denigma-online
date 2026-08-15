@@ -30,7 +30,7 @@ jobs:
           cache: npm
 
       - name: Set up Emscripten
-        uses: mymindstorm/setup-emsdk@v14
+        uses: emscripten-core/setup-emsdk@v16
         with:
           version: 5.0.7
           actions-cache-folder: emsdk-cache
