@@ -18,6 +18,14 @@
       "problemMatcher": ["$gcc"]
     },
     {
+      "label": "WASM: Configure (pinned Denigma, build from source)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "configure:source"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$gcc"]
+    },
+    {
       "label": "WASM: Configure (local Denigma)",
       "type": "shell",
       "command": "node",

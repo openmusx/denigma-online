@@ -52,27 +52,23 @@ test('MusicXML can preserve text when all source fonts are available', async () 
   const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
-  const wasm = await readFile(new URL('../src/wasm/denigma_online.cpp', import.meta.url), 'utf8');
 
   assert.match(html, /id="musicxmlAllFonts"[^>]*aria-describedby="musicxmlAllFontsHint"/);
   assert.match(html, /id="musicxmlAllFontsHint" role="tooltip" class="hint-bubble">[^<]{20,}</);
   assert.match(app, /formatKey === 'musicxml' && elements\.musicxmlAllFonts\.checked/);
   assert.match(worker, /options\.allFontsAvailable \? 1 : 0/);
-  assert.match(wasm, /context\.allFontsAvailable = allFontsAvailable/);
 });
 
 test('MusicXML can preserve Finale whole-rest positions', async () => {
   const html = await readFile(new URL('../src/web/index.html', import.meta.url), 'utf8');
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
-  const wasm = await readFile(new URL('../src/wasm/denigma_online.cpp', import.meta.url), 'utf8');
 
   assert.match(html, /id="musicxmlFinaleRestPosition"[^>]*aria-describedby="musicxmlFinaleRestPositionHint"/);
   assert.doesNotMatch(html, /id="musicxmlFinaleRestPosition"[^>]*checked/);
   assert.match(html, /id="musicxmlFinaleRestPositionHint" role="tooltip" class="hint-bubble">[^<]{20,}</);
   assert.match(app, /useFinaleRestPosition: formatKey === 'musicxml' && elements\.musicxmlFinaleRestPosition\.checked/);
   assert.match(worker, /options\.useFinaleRestPosition \? 1 : 0/);
-  assert.match(wasm, /context\.useFinaleRestPosition = useFinaleRestPosition/);
 });
 
 test('conversion preferences are stored locally without cookies', async () => {
@@ -212,12 +208,20 @@ test('production builds include Apache caching and compressed WASM rules', async
   assert.match(apache, /'wasm-unsafe-eval' 'unsafe-eval'/);
 });
 
-test('Emscripten exceptions are enabled before Denigma dependencies are added', async () => {
+test('the WebAssembly module comes from Denigma, prebuilt or built by its own project', async () => {
   const cmake = await readFile(new URL('../CMakeLists.txt', import.meta.url), 'utf8');
-  const exceptions = cmake.indexOf('string(APPEND CMAKE_CXX_FLAGS " -fexceptions")');
-  const dependencies = cmake.indexOf('FetchContent_MakeAvailable(denigma)');
 
-  assert.ok(exceptions >= 0 && exceptions < dependencies);
+  // Denigma owns the module's build; this project neither compiles a wrapper of
+  // its own nor sets Denigma's compiler options or build flags for it.
+  assert.doesNotMatch(cmake, /add_executable|add_library|target_link_options|CMAKE_CXX_FLAGS|denigma_BUILD_/);
+  assert.match(cmake, /scripts\/fetch-denigma-wasm\.mjs/);
+  assert.match(cmake, /ExternalProject_Add\(denigma/);
+  assert.match(cmake, /--target denigma_wasm/);
+  assert.match(cmake, /-DDENIGMA_CXX_STANDARD=20/);
+  assert.match(cmake, /set\(_denigma_binary_dir "\$\{DENIGMA_SOURCE_DIR\}\/build-wasm"\)/);
+  assert.match(cmake, /BUILD_ALWAYS TRUE/);
+  // A local checkout is always built from its working tree, never downloaded.
+  assert.match(cmake, /if\(NOT DENIGMA_SOURCE_DIR AND DENIGMA_WASM_PREBUILT\)/);
 });
 
 test('VS Code setup generates Emscripten presets for the CMake Build button', async () => {
@@ -246,7 +250,6 @@ test('VS Code template is valid and exposes the onboarding workflow', async () =
   assert.equal(settings['cmake.loggingLevel'], 'debug');
   assert.equal(settings['cmake.revealLog'], 'always');
   assert.equal(settings['cmake.clearOutputBeforeBuild'], true);
-  assert.ok(extensions.recommendations.includes('llvm-vs-code-extensions.vscode-clangd'));
   assert.ok(extensions.recommendations.includes('ms-vscode.cmake-tools'));
   assert.ok(launch.configurations.some(({ preLaunchTask }) => preLaunchTask === 'Dev: Build and serve'));
 

@@ -36,8 +36,13 @@ installations are activated for child build tasks.
 
 Before the first build, run one of these tasks from **Terminal → Run Task**:
 
-- `WASM: Configure (local Denigma)` when `../denigma` is available.
-- `WASM: Configure (pinned Denigma)` to fetch the pinned commit.
+- `WASM: Configure (local Denigma)` when `../denigma` is available; the site
+  is then built from that checkout's working tree.
+- `WASM: Configure (pinned Denigma)` to use the module Denigma's CI built for
+  the pinned commit (sign in with `gh auth login` or set `GITHUB_TOKEN` so it
+  can be downloaded), building Denigma from source only if there is none.
+- `WASM: Configure (pinned Denigma, build from source)` to build the pinned
+  commit from source regardless.
 
 After configuration, `WASM: Build site` is the default build task and
 `Test: All` is the default test task. The Chrome and Edge launch configurations
@@ -47,8 +52,7 @@ macOS, and Linux.
 
 The setup command also detects the active Emscripten installation and generates
 an ignored local `CMakeUserPresets.json`. CMake Tools' **Build** button then uses
-that preset to build the `web_dist` target as `MinSizeRel`; no compiler kit is
-needed. The ignored, machine-local preset records the `PATH` from the shell that
+that preset to build the `web_dist` target; no compiler kit is needed. The ignored, machine-local preset records the `PATH` from the shell that
 runs `setup:vscode`; no machine-specific paths are committed. Rerun
 `npm run setup:vscode:force` from a shell where `npm run doctor` succeeds after
 changing tool installations.

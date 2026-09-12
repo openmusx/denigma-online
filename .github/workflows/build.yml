@@ -38,8 +38,11 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
+      # The token downloads the module Denigma's CI built for the pinned commit.
       - name: Configure with CMake
         run: npm run configure
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Build web distribution
         run: npm run build

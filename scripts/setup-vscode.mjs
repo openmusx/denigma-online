@@ -46,16 +46,15 @@ if (emConfig) {
     const configurePreset = {
       name: 'denigma-online',
       displayName: `Denigma Online: Emscripten${version ? ` ${version}` : ''}`,
-      description: 'MinSizeRel WebAssembly build',
+      description: 'Denigma WebAssembly module and static site',
       binaryDir: '${sourceDir}/build-wasm',
       toolchainFile: toolchainFile.replaceAll('\\', '/'),
       environment: {
         PATH: environment.PATH
       },
       cacheVariables: {
-        CMAKE_BUILD_TYPE: 'MinSizeRel',
-        CMAKE_EXPORT_COMPILE_COMMANDS: true,
-        DENIGMA_SOURCE_DIR: ''
+        DENIGMA_SOURCE_DIR: '',
+        DENIGMA_WASM_PREBUILT: 'ON'
       }
     };
     if (process.platform === 'win32') {
