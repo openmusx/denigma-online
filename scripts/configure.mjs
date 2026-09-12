@@ -5,8 +5,10 @@ import { resolve } from 'node:path';
 import { developmentEnvironment, findExecutable, runExecutable } from './tooling.mjs';
 
 let denigmaSource;
+let sourceBuild = false;
 for (let index = 2; index < process.argv.length; index += 1) {
   if (process.argv[index] === '--denigma') denigmaSource = process.argv[++index];
+  else if (process.argv[index] === '--source-build') sourceBuild = true;
   else throw new Error(`Unknown argument: ${process.argv[index]}`);
 }
 
@@ -18,12 +20,12 @@ if (!emcmake) {
   process.exit(1);
 }
 
+// DENIGMA_SOURCE_DIR is always passed; an empty value selects the pin.
 const args = [
   'cmake', '-S', '.', '-B', 'build-wasm',
-  '-DCMAKE_BUILD_TYPE=MinSizeRel',
-  '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
+  `-DDENIGMA_SOURCE_DIR=${denigmaSource ? resolve(denigmaSource) : ''}`,
+  `-DDENIGMA_WASM_PREBUILT=${sourceBuild ? 'OFF' : 'ON'}`
 ];
-if (denigmaSource) args.push(`-DDENIGMA_SOURCE_DIR=${resolve(denigmaSource)}`);
 
 const result = runExecutable(emcmake, args, { cwd: workspace, environment });
 process.exit(result.status ?? 1);

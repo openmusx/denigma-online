@@ -32,9 +32,12 @@ unless a user opens a preview.
 ## Requirements
 
 - CMake 3.24 or newer
-- Emscripten (tested with 5.0.7)
-- Node.js 20 or newer (build script and tests only)
+- Emscripten (tested with 5.0.7), used whenever Denigma is built from source
+- Node.js 20 or newer (build scripts and tests)
 - Git and network access for the initial Denigma/dependency fetch
+- Optional: a GitHub token (`gh auth login`, or `GITHUB_TOKEN`) to download the
+  module Denigma's CI already built for the pinned revision instead of
+  compiling it
 
 ### Development prerequisites
 
@@ -44,7 +47,8 @@ Run the cross-platform environment check after cloning:
 npm run doctor
 ```
 
-It verifies Node.js, CMake, Git, and Emscripten. Emscripten can already be on
+It verifies Node.js, CMake, Git, and Emscripten, and reports whether a GitHub
+token is available for prebuilt modules. Emscripten can already be on
 `PATH`, or the tooling can activate an emsdk checkout found through
 `DENIGMA_EMSDK`, `EMSDK`, `../emsdk`, or `~/emsdk`.
 
@@ -74,15 +78,37 @@ that shell.
 
 ## Build
 
+The WebAssembly module is Denigma's `denigma_wasm` target, built by Denigma's
+own CMake project; this repository only chooses where the module comes from and
+turns it into the static site. There are three sources:
+
+1. **Prebuilt (default for the pin).** Denigma's CI uploads the module of every
+   push to its `main` branch as the `denigma-wasm` workflow artifact and attaches
+   `denigma.<tag>.wasm.zip` to every release. With the pin set to a commit, the
+   configure step downloads that commit's artifact (a GitHub token is required:
+   `gh auth login`, or `GITHUB_TOKEN`/`GH_TOKEN` in the environment) and checks
+   that the module reports the pinned commit. A tag pin uses the release asset,
+   which needs no token.
+2. **Pinned source.** If there is no usable artifact (never built, expired after
+   GitHub's retention period, no token, or verification failed), the configure
+   step says why and Denigma is cloned at the pin and built from source. This can
+   also be forced with `-DDENIGMA_WASM_PREBUILT=OFF` (`npm run configure:source`).
+3. **Local checkout.** With `-DDENIGMA_SOURCE_DIR=<path>` (`npm run configure:local`
+   for `../denigma`) the working tree of that checkout is always built from
+   source, uncommitted changes included, and the artifact is never consulted.
+
+In all cases the module is staged as `build-wasm/wasm/denigma.js` and
+`build-wasm/wasm/denigma.wasm`, and the configure output names the source in use.
+
 The default build uses the Denigma revision pinned by `DENIGMA_GIT_TAG_PIN` in
-`CMakeLists.txt`. Changing that pin re-fetches Denigma on the next configure of
-an existing build directory. To build a different revision without editing the
+`CMakeLists.txt`. Changing that pin takes effect on the next configure of an
+existing build directory. To build a different revision without editing the
 pin, configure with `-DDENIGMA_GIT_TAG_OVERRIDE=<commit>` (and clear it with
 `-DDENIGMA_GIT_TAG_OVERRIDE=` to return to the pin).
 
 ```sh
 npm ci
-emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel
+emcmake cmake -S . -B build-wasm
 cmake --build build-wasm --target web_dist -j2
 npm test
 npm run test:wasm
@@ -97,11 +123,19 @@ static gzip support.
 For development against a local Denigma checkout:
 
 ```sh
-emcmake cmake -S . -B build-wasm \
-  -DCMAKE_BUILD_TYPE=MinSizeRel \
-  -DDENIGMA_SOURCE_DIR=../denigma
+emcmake cmake -S . -B build-wasm -DDENIGMA_SOURCE_DIR=../denigma
 cmake --build build-wasm --target web_dist -j2
 ```
+
+Denigma is then configured and built in that checkout's own ignored
+`build-wasm/` directory with the same arguments its README documents
+(`-DCMAKE_BUILD_TYPE=MinSizeRel -DDENIGMA_CXX_STANDARD=20`, target
+`denigma_wasm`), so building the site and running those commands by hand are
+interchangeable and share one incremental build. Every site build re-enters
+that build, which is a no-op when nothing changed. The module reports a
+`-dirty` commit while the checkout has uncommitted changes, and the diagnostic
+report shows it. `DENIGMA_BUILD_JOBS` (default 2) sets the parallelism of
+Denigma's build.
 
 Denigma's own local dependency overrides can also be passed to CMake. See its
 build documentation for `MUSX_LOCAL_PATH`, `MX_LOCAL_PATH`,
@@ -121,8 +155,8 @@ If `.vscode/` already exists and you intentionally want to refresh its shared
 files from the template, run `npm run setup:vscode:force`. Files unique to your
 local directory are preserved.
 
-The template provides tasks for pinned or local-Denigma configuration, the full
-WASM/site build, web-only rebuilds, both test suites, and the local development
+The template provides tasks for pinned (prebuilt or source) and local-Denigma
+configuration, the full WASM/site build, web-only rebuilds, both test suites, and the local development
 server. It also provides Chrome and Edge launch configurations. See
 `.vscode_template/README.md` for the first-run sequence.
 
@@ -149,7 +183,7 @@ it rebuilds the site and starts the local server automatically.
 
 `setup:vscode` also generates an ignored local `CMakeUserPresets.json` for the
 active Emscripten installation. CMake Tools' **Build** button uses that preset
-to build `web_dist` as `MinSizeRel`, so no compiler kit is needed. The ignored,
+to build `web_dist`, so no compiler kit is needed. The ignored,
 machine-local preset records the `PATH` from the shell that runs
 `setup:vscode`; no machine-specific paths are committed. Rerun
 `npm run setup:vscode:force` from a shell where `npm run doctor` succeeds after
@@ -167,9 +201,7 @@ The Node unit suite covers filenames, duplicate part names, diagnostic reports,
 privacy/accessibility markup, and the worker boundary. Run
 `test:wasm` after `web_dist`; it inspects a checked-in linked-parts MUSX fixture,
 exports the score, one part, score plus part, MNX, and EnigmaXML, and verifies
-that invalid MUSX bytes fail with diagnostics. A successful production build
-also proves that the unified C++ wrapper links against all three real Denigma
-exporters.
+that invalid MUSX bytes fail with diagnostics.
 
 ## Deploy
 
@@ -250,16 +282,16 @@ inside the opened preview panel.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.7289738bc8f1.wasm:    6,406,656 bytes (6.11 MiB)
-denigma.7289738bc8f1.wasm.gz: 1,573,227 bytes (1.50 MiB)
+denigma.f8a87cdfd3a4.wasm:    6,153,682 bytes (5.87 MiB)
+denigma.f8a87cdfd3a4.wasm.gz: 1,546,122 bytes (1.47 MiB)
 ```
 
-This size was measured from the verified Emscripten 5.0.7 MinSizeRel build at
-the configured Denigma revision. The single binary
-shares Denigma, MUSX parsing, XML, compression, and exporter dependencies and is
-cached under a content-hashed immutable URL. C++ exception catching is enabled
-across Denigma and all linked dependencies so conversion failures can be
-reported without terminating the WebAssembly runtime.
+This size was measured from Denigma's Emscripten 5.0.7 MinSizeRel build at the
+configured Denigma revision. The single binary shares Denigma, MUSX parsing,
+XML, compression, and exporter dependencies and is cached under a content-hashed
+immutable URL. Denigma enables C++ exception catching across the module and all
+linked dependencies so conversion failures can be reported without terminating
+the WebAssembly runtime.
 
 ## Preview renderer size
 
@@ -277,20 +309,21 @@ load. Subsequent previews reuse the immutable cached renderer.
 
 ## Updating Denigma
 
-1. Choose and review a Denigma commit that contains the desired converter API.
+1. Choose and review a Denigma commit on `main` whose `Build and Test Denigma`
+   workflow has finished, so that its `denigma-wasm` artifact exists.
 2. Change `DENIGMA_GIT_TAG_PIN` in `CMakeLists.txt` to the full commit hash.
-3. Configure `build-wasm` and build `web_dist`. The configure step detects the
-   changed pin and re-fetches Denigma, so a clean build directory is not
-   required.
+3. Configure `build-wasm` and build `web_dist`. The configure step downloads the
+   new commit's module (or, without one, re-fetches and builds Denigma), so a
+   clean build directory is not required.
 4. Run `npm test` and test all three formats with a MUSX containing linked
    parts, warnings, and playback tempo changes.
 5. Record the new WASM byte size in this README.
 6. Deploy the complete new `dist/` directory. Old hashed assets may be removed
    after the old HTML cache has expired.
 
-The website's C++ wrapper deliberately uses Denigma's converter option structs,
-`ConversionResult`, random-access reader, and MusicXML multi-output callback.
-Review the wrapper whenever those public interfaces change.
+The module's C ABI (`src/wasm/denigma_wasm.cpp` and the exported function list
+in `src/wasm/CMakeLists.txt` in the Denigma repository) is the contract with
+`src/web/worker.js`. Review the worker whenever that interface changes.
 
 ## Architecture
 

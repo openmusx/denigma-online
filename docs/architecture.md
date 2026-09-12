@@ -91,10 +91,15 @@ parsed document across calls needs a document-taking entry point that Denigma do
 not expose yet, and MusicXML parses with `PartVoicingPolicy::Apply` where
 inspection and MNX use `Ignore`, so one cached document cannot serve all three.
 
-The root CMake configuration enables Emscripten's `-fexceptions` at compile and
-link time before adding Denigma. This keeps exception handling consistent across
-the wrapper and all linked dependencies, allowing conversion failures to reach
-the wrapper's diagnostic handling instead of aborting the WebAssembly runtime.
+The wrapper described above now lives in the Denigma repository as
+`src/wasm/denigma_wasm.cpp`, built by Denigma's `denigma_wasm` target; this
+repository consumes the resulting `denigma.js`/`denigma.wasm` pair (downloaded
+from Denigma's CI for a pinned commit, or built by Denigma's own CMake project
+from the pinned or a local source tree). Denigma's CMake configuration enables
+Emscripten's `-fexceptions` at compile and link time before adding its
+dependencies, which keeps exception handling consistent across the wrapper and
+everything it links so conversion failures reach the wrapper's diagnostic
+handling instead of aborting the WebAssembly runtime.
 
 The worker retains one selected input today. Its request/response messages and
 per-result diagnostics already provide the seam for a future coordinator that

@@ -8,10 +8,6 @@
   "cmake.clearOutputBeforeBuild": true,
   "cmake.sourceDirectory": "${workspaceFolder}",
   "cmake.buildDirectory": "${workspaceFolder}/build-wasm",
-  "clangd.arguments": [
-    "--compile-commands-dir=${workspaceFolder}/build-wasm",
-    "--background-index"
-  ],
   "files.exclude": {
     "**/.DS_Store": true
   },

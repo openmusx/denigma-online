@@ -9,6 +9,7 @@
     "setup:vscode:force": "node scripts/setup-vscode.mjs --force",
     "configure": "node scripts/configure.mjs",
     "configure:local": "node scripts/configure.mjs --denigma ../denigma",
+    "configure:source": "node scripts/configure.mjs --source-build",
     "build": "cmake --build build-wasm --target web_dist --parallel 2",
     "serve": "node scripts/serve.mjs dist 8080",
     "test": "node --test tests/*.test.mjs",

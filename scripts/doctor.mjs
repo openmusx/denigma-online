@@ -45,6 +45,15 @@ if (emcmake && emcc) {
   fail('Emscripten', 'emcmake/emcc not found; activate emsdk or set DENIGMA_EMSDK to its directory');
 }
 
+// A pinned build downloads Denigma's CI-built module with a GitHub token and
+// builds Denigma from source without one.
+const tokenSource = ['GITHUB_TOKEN', 'GH_TOKEN'].find((name) => environment[name]?.trim());
+const gh = await findExecutable('gh', environment);
+const ghToken = gh && runExecutable(gh, ['auth', 'token'], { environment, stdio: 'pipe', encoding: 'utf8' });
+if (tokenSource) pass('Prebuilt Denigma module', `downloadable with ${tokenSource}`);
+else if (ghToken?.status === 0 && ghToken.stdout.trim()) pass('Prebuilt Denigma module', 'downloadable with gh auth token');
+else console.log('· Prebuilt Denigma module: no GitHub token (set GITHUB_TOKEN or run "gh auth login"); pinned builds compile Denigma from source');
+
 if (failures.length) {
   console.error('\nSetup is incomplete. See README.md → Development prerequisites.');
   process.exit(1);
