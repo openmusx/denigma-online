@@ -34,7 +34,7 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /Looks wrong\?<\/strong> Open the downloaded MusicXML in your music app before reporting a problem\./);
   assert.match(html, /OpenSheetMusicDisplay 2\.1\.1/);
   assert.match(html, /href="\.\/LICENSE-OSMD\.txt"/);
-  assert.match(html, /github\.com\/rpatters1\/denigma\/issues/g);
+  assert.match(html, /github\.com\/openmusx\/denigma\/issues/g);
   assert.doesNotMatch(html, /issues\/new/);
   assert.doesNotMatch(html, /https:\/\/(?!github\.com)/);
 });
@@ -182,7 +182,7 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
   assert.match(app, /new Worker/);
-  assert.match(app, /github\.com\/rpatters1\/denigma\/issues'/);
+  assert.match(app, /github\.com\/openmusx\/denigma\/issues'/);
   assert.doesNotMatch(app, /issues\/new/);
   assert.match(worker, /_denigma_convert/);
   assert.match(worker, /_denigma_result_score_name/);
