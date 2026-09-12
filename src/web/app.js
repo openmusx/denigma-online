@@ -14,7 +14,7 @@ import {
 } from '__CORE_MODULE_URL__';
 import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
 
-const ISSUE_URL = 'https://github.com/rpatters1/denigma/issues';
+const ISSUE_URL = 'https://github.com/openmusx/denigma/issues';
 const SETTINGS_STORAGE_KEY = 'denigma-online.settings.v1';
 const PREVIEW_MODULE_URL = '__PREVIEW_MODULE_URL__';
 const canPickSaveFile = 'showSaveFilePicker' in window;
