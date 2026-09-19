@@ -139,7 +139,8 @@ function convert(options) {
         options.indentSpaces,
         options.cueLayer,
         selectionPointer,
-        selections.length
+        selections.length,
+        0 // writeGapReport: the site never reads the MNX gap report
       );
       if (!resultPointer) throw new Error('Denigma did not return a conversion result.');
       try {
