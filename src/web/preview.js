@@ -72,6 +72,10 @@ export async function renderMusicXmlPreview(container, musicXml, pageSize) {
   // secondary voice (a Finale layer other than 1) stem-down even where that
   // layer is alone in the measure; Finale gives such notes pitch-based stems.
   renderer.EngravingRules.AutoStemSecondaryVoicesWhenAloneInMeasure = true;
+  // VexFlow pushes the beam of a run deep into ledger lines far from the
+  // staff to honor minimum stem lengths. This pulls it back toward the staff
+  // by lengthening stems only, closer to how Finale engraves such runs.
+  renderer.EngravingRules.OptimizeExtremeLedgerBeams = true;
   const sourceMargins = sourcePageMargins(validPageSize);
   if (sourceMargins) Object.assign(renderer.EngravingRules, sourceMargins);
   await renderer.load(musicXml);
