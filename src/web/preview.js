@@ -67,6 +67,11 @@ export async function renderMusicXmlPreview(container, musicXml, pageSize) {
     pageBackgroundColor: '#ffffff'
   });
   if (validPageSize) renderer.setCustomPageFormat(validPageSize.widthMm, validPageSize.heightMm);
+  // Denigma declares <supports element="stem" type="no"/> and leaves stem
+  // directions to the renderer. Without this rule OSMD forces every note of a
+  // secondary voice (a Finale layer other than 1) stem-down even where that
+  // layer is alone in the measure; Finale gives such notes pitch-based stems.
+  renderer.EngravingRules.AutoStemSecondaryVoicesWhenAloneInMeasure = true;
   const sourceMargins = sourcePageMargins(validPageSize);
   if (sourceMargins) Object.assign(renderer.EngravingRules, sourceMargins);
   await renderer.load(musicXml);
