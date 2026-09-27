@@ -282,8 +282,8 @@ inside the opened preview panel.
 The production build contains one binary with all three exporters:
 
 ```text
-denigma.b79fa55d31e3.wasm:    6,490,222 bytes (6.19 MiB)
-denigma.b79fa55d31e3.wasm.gz: 1,659,623 bytes (1.58 MiB)
+denigma.b431229681c0.wasm:    6,491,165 bytes (6.19 MiB)
+denigma.b431229681c0.wasm.gz: 1,659,912 bytes (1.58 MiB)
 ```
 
 This size was measured from Denigma's Emscripten 5.0.7 MinSizeRel build at the
