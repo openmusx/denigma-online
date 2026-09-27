@@ -31,9 +31,14 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /id="previewSection"[^>]*hidden/);
   assert.match(html, /id="previewCanvas"[^>]*tabindex="0"[^>]*aria-label="Scrollable score preview"/);
   assert.match(html, /id="printPreview"[^>]*disabled>Print…<\/button>/);
-  assert.match(html, /Looks wrong\?<\/strong> Open the downloaded MusicXML in your music app before reporting a problem\./);
-  assert.match(html, /OpenSheetMusicDisplay 2\.1\.1/);
+  assert.match(html, /Looks wrong\?<\/strong> Open the downloaded <span id="previewGuidanceFormat">MusicXML<\/span> in your music app before reporting a problem\./);
+  assert.match(html, /id="previewScoreLabel"[^>]*hidden>Show <select id="previewScore"><\/select><\/label>/);
+  assert.match(html, /id="previewLicenseOsmd"[^>]*>Preview rendering by OpenSheetMusicDisplay 2\.1\.1/);
   assert.match(html, /href="\.\/LICENSE-OSMD\.txt"/);
+  assert.match(html, /id="previewLicenseViritura"[^>]*hidden>Preview rendering by the Viritura score viewer __VIRITURA_VERSION__/);
+  assert.match(html, /href="\.\/LICENSE-Viritura\.txt"/);
+  assert.match(html, /href="\.\/LICENSE-OFL\.txt"/);
+  assert.match(html, /href="\.\/NOTICES-Viritura\.txt"/);
   assert.match(html, /github\.com\/openmusx\/denigma\/issues/g);
   assert.doesNotMatch(html, /issues\/new/);
   assert.doesNotMatch(html, /https:\/\/(?!github\.com)/);
@@ -136,12 +141,12 @@ test('MusicXML previews lazy-load OSMD and render the complete score', async () 
   const preview = await readFile(new URL('../src/web/preview.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../src/web/styles.css', import.meta.url), 'utf8');
   const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
-  assert.match(app, /formatKey === 'musicxml'/);
+  assert.match(app, /formatKey === 'musicxml' \|\| formatKey === 'mnx'/);
   assert.match(app, /preview\.textContent = 'Preview'/);
   assert.match(app, /elements\.previewStatus\.textContent = 'Preview ready\.'/);
   assert.match(app, /elements\.printPreview\.disabled = false/);
   assert.match(app, /sheet\.insertRule\(`@page \{ size: \$\{width\}mm \$\{height\}mm; margin: 0; \}`/);
-  assert.match(app, /window\.addEventListener\('afterprint', removePageRule/);
+  assert.match(app, /window\.addEventListener\('afterprint', \(\) => \{\n    removePageRule\(\);\n    removePrintPages\(\);/);
   assert.match(app, /window\.print\(\)/);
   assert.doesNotMatch(app, /source page size|source page layout|spatium \(\$\{/);
   assert.match(app, /import\(new URL\(PREVIEW_MODULE_URL, import\.meta\.url\)\.href\)/);
@@ -172,6 +177,42 @@ test('MusicXML previews lazy-load OSMD and render the complete score', async () 
   assert.doesNotMatch(preview, /drawUpToPageNumber/);
   assert.match(build, /opensheetmusicdisplay\.min\.js/);
   assert.match(build, /LICENSE-OSMD\.txt/);
+});
+
+test('MNX previews lazy-load the pinned Viritura score viewer', async () => {
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  const preview = await readFile(new URL('../src/web/preview.js', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/web/styles.css', import.meta.url), 'utf8');
+  const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
+  const cmake = await readFile(new URL('../CMakeLists.txt', import.meta.url), 'utf8');
+  const apache = await readFile(new URL('../deploy/apache.htaccess', import.meta.url), 'utf8');
+
+  assert.match(app, /renderMnxPreview\(elements\.previewCanvas, output\.blob, \[/);
+  assert.match(app, /\{ name: elements\.scoreName\.textContent, pageSize: scorePageSize \}/);
+  assert.match(app, /activePreview\?\.setScoreIndex\?\.\(Number\(elements\.previewScore\.value\)\)/);
+  assert.match(app, /removePrintPages = await preview\.preparePrint\(\)/);
+  assert.match(preview, /const VIRITURA_VIEWER_URL = '__VIRITURA_VIEWER_URL__'/);
+  assert.match(preview, /import\(new URL\(VIRITURA_VIEWER_URL, import\.meta\.url\)\.href\)/);
+  assert.match(preview, /mountScore\(renderSurface, text, \{/);
+  assert.match(preview, /zoom: 'fit-width'/);
+  assert.match(preview, /useWorker: true/);
+  assert.match(preview, /engine\.toSvg\(displayList, \{ page \}\)/);
+  assert.match(preview, /data:image\/svg\+xml/);
+  assert.match(styles, /\.preview-print-pages \{ display: none; \}/);
+  assert.match(styles, /\.preview-viritura-surface \{ display: none !important; \}/);
+  assert.match(styles, /\.preview-print-pages > img \+ img \{ break-before: page; page-break-before: always; \}/);
+  // The distribution keeps its layout, because its modules find wasm/, fonts/
+  // and the worker relative to themselves.
+  assert.match(build, /viritura\.\$\{virituraHash\}/);
+  assert.match(build, /\['wasm', 'fonts'\]/);
+  assert.match(build, /__VIRITURA_VIEWER_URL__/);
+  assert.match(build, /__VIRITURA_VERSION__/);
+  assert.match(build, /LICENSE-Viritura\.txt/);
+  assert.match(build, /OFL-1\.1\.txt/);
+  assert.match(cmake, /set\(VIRITURA_REVISION_PIN "score-engine-v\d+\.\d+\.\d+"\)/);
+  assert.match(cmake, /scripts\/fetch-viritura-viewer\.mjs/);
+  assert.match(apache, /m#\/assets\/viritura\\\.\[0-9a-f\]\{12\}\/#/);
+  assert.match(apache, /RewriteRule \^\(\.\+\\\.\(wasm\|js\|otf\)\)\$ \$1\.gz/);
 });
 
 test('worker owns WASM conversion so the UI thread stays responsive', async () => {
@@ -234,6 +275,7 @@ test('VS Code setup generates Emscripten presets for the CMake Build button', as
   assert.match(setup, /targets: \['web_dist'\]/);
   assert.match(setup, /PATH: environment\.PATH/);
   assert.match(setup, /DENIGMA_SOURCE_DIR: ''/);
+  assert.match(setup, /VIRITURA_DIST_DIR: ''/);
   assert.match(cmake, /add_custom_target\(web_dist ALL/);
 });
 

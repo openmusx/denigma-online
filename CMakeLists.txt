@@ -39,6 +39,27 @@ foreach(_denigma_pin GIT_REPOSITORY GIT_TAG)
     endif()
 endforeach()
 
+# Viritura's standalone score engine and viewer render the MNX preview. The pin
+# is a score-engine-v<version> release tag or a commit on Viritura's main branch;
+# like Denigma's, it is a plain variable so that editing it here takes effect.
+set(VIRITURA_GIT_REPOSITORY_PIN "https://github.com/Viritura/Viritura.git")
+set(VIRITURA_REVISION_PIN "score-engine-v0.1.0")
+
+set(VIRITURA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
+    "Override the pinned Viritura repository")
+set(VIRITURA_REVISION_OVERRIDE "" CACHE STRING
+    "Override the pinned Viritura score-engine release tag or commit")
+set(VIRITURA_DIST_DIR "" CACHE PATH
+    "Optional local Viritura score-engine distribution (Viritura's dist/score-engine)")
+
+foreach(_viritura_pin GIT_REPOSITORY REVISION)
+    if(VIRITURA_${_viritura_pin}_OVERRIDE)
+        set(VIRITURA_${_viritura_pin} "${VIRITURA_${_viritura_pin}_OVERRIDE}")
+    else()
+        set(VIRITURA_${_viritura_pin} "${VIRITURA_${_viritura_pin}_PIN}")
+    endif()
+endforeach()
+
 if(DENIGMA_SOURCE_DIR)
     get_filename_component(DENIGMA_SOURCE_DIR "${DENIGMA_SOURCE_DIR}" ABSOLUTE)
     if(NOT EXISTS "${DENIGMA_SOURCE_DIR}/CMakeLists.txt")
@@ -98,6 +119,51 @@ if(NOT DENIGMA_SOURCE_DIR AND DENIGMA_WASM_PREBUILT)
         set(_denigma_wasm_prebuilt TRUE)
         message(STATUS "Denigma WebAssembly module: prebuilt ${_denigma_wasm_origin} for ${DENIGMA_GIT_TAG}")
     endif()
+endif()
+
+# The score viewer is only ever downloaded or taken from a local distribution:
+# building it needs Viritura's Rust, wasm-pack and pnpm toolchain.
+if(VIRITURA_DIST_DIR)
+    get_filename_component(VIRITURA_VIEWER_DIR "${VIRITURA_DIST_DIR}" ABSOLUTE)
+    if(NOT EXISTS "${VIRITURA_VIEWER_DIR}/score-viewer.js" OR NOT EXISTS "${VIRITURA_VIEWER_DIR}/manifest.json")
+        message(FATAL_ERROR "VIRITURA_DIST_DIR is not a Viritura score-engine distribution: ${VIRITURA_VIEWER_DIR}")
+    endif()
+    message(STATUS "Viritura score viewer: local distribution ${VIRITURA_VIEWER_DIR}")
+else()
+    set(VIRITURA_VIEWER_DIR "${CMAKE_BINARY_DIR}/viritura")
+    set(_viritura_stamp "${VIRITURA_VIEWER_DIR}/viritura.stamp")
+    set(_viritura_revision "${VIRITURA_GIT_REPOSITORY}@${VIRITURA_REVISION}")
+    set(_viritura_origin "")
+    if(EXISTS "${_viritura_stamp}" AND EXISTS "${VIRITURA_VIEWER_DIR}/score-viewer.js")
+        file(STRINGS "${_viritura_stamp}" _viritura_stamp_lines)
+        list(GET _viritura_stamp_lines 0 _viritura_stamp_origin)
+        list(GET _viritura_stamp_lines 1 _viritura_stamp_revision)
+        if("${_viritura_stamp_revision}" STREQUAL "${_viritura_revision}")
+            set(_viritura_origin "${_viritura_stamp_origin}")
+        endif()
+    endif()
+    if(NOT _viritura_origin)
+        execute_process(
+            COMMAND "${NODE_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/fetch-viritura-viewer.mjs"
+                --repository "${VIRITURA_GIT_REPOSITORY}"
+                --revision "${VIRITURA_REVISION}"
+                --output "${VIRITURA_VIEWER_DIR}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE _viritura_fetch_result
+            OUTPUT_VARIABLE _viritura_fetch_output
+            ERROR_VARIABLE _viritura_fetch_error
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_STRIP_TRAILING_WHITESPACE
+        )
+        if(NOT _viritura_fetch_result EQUAL 0)
+            message(FATAL_ERROR "${_viritura_fetch_error}. Set VIRITURA_DIST_DIR to a local "
+                "Viritura score-engine distribution to build without downloading it.")
+        endif()
+        message(STATUS "${_viritura_fetch_output}")
+        file(STRINGS "${_viritura_stamp}" _viritura_stamp_lines)
+        list(GET _viritura_stamp_lines 0 _viritura_origin)
+    endif()
+    message(STATUS "Viritura score viewer: prebuilt ${_viritura_origin} for ${VIRITURA_REVISION}")
 endif()
 
 if(NOT _denigma_wasm_prebuilt)
@@ -188,7 +254,9 @@ add_custom_target(web_dist ALL
     COMMAND "${NODE_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build-web.mjs"
         "${DENIGMA_WASM_DIR}/denigma.js"
         "${DENIGMA_WASM_DIR}/denigma.wasm"
+        "${VIRITURA_VIEWER_DIR}"
     DEPENDS "${DENIGMA_WASM_DIR}/denigma.js" "${DENIGMA_WASM_DIR}/denigma.wasm"
+        "${VIRITURA_VIEWER_DIR}/manifest.json"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Building content-hashed static site"
     VERBATIM

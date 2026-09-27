@@ -191,6 +191,11 @@ button.small { padding: .35rem .65rem; }
 .preview-heading .help { margin-bottom: 0; }
 .preview-canvas { background: #d5d8dc; border: 1px solid var(--border); border-radius: .4rem; margin-top: .75rem; max-width: calc(100vw - 2rem); min-height: 8rem; overflow: auto; padding: 1rem; scrollbar-gutter: stable; width: calc(100% + 1rem); }
 .preview-render-surface > div { margin-inline: auto; }
+.preview-canvas-viritura { overflow: hidden; padding: 0; }
+.preview-viritura-surface { min-height: 8rem; }
+.preview-print-pages { display: none; }
+.preview-score { align-items: center; display: flex; gap: .4rem; }
+.preview-score select { padding: .3rem .5rem; width: auto; }
 .preview-license { color: var(--muted); font-size: .8rem; margin: .5rem 0 0; text-align: right; }
 
 details summary { cursor: pointer; font-weight: 650; }
@@ -211,6 +216,10 @@ footer { font-size: .9rem; padding: 1rem 0 2.5rem; }
   .preview-render-surface > div + div { break-before: page; page-break-before: always; }
   .preview-render-surface svg { display: block; height: auto !important; width: calc(100% - 1px) !important; }
   .preview-render-surface img { display: none !important; }
+  .preview-viritura-surface { display: none !important; }
+  .preview-print-pages { display: block; }
+  .preview-print-pages > img { break-inside: avoid; display: block; height: auto; page-break-inside: avoid; width: calc(100% - 1px); }
+  .preview-print-pages > img + img { break-before: page; page-break-before: always; }
 }
 
 @media (prefers-color-scheme: dark) {

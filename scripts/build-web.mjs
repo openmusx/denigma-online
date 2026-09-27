@@ -3,13 +3,13 @@
 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const [, , moduleArg, wasmArg] = process.argv;
-if (!moduleArg || !wasmArg) {
-  console.error('usage: node scripts/build-web.mjs <denigma.js> <denigma.wasm>');
+const [, , moduleArg, wasmArg, virituraArg] = process.argv;
+if (!moduleArg || !wasmArg || !virituraArg) {
+  console.error('usage: node scripts/build-web.mjs <denigma.js> <denigma.wasm> <viritura score-engine directory>');
   process.exit(2);
 }
 
@@ -57,8 +57,40 @@ const osmdUrl = await emit('osmd', 'js', osmdSource);
 const osmdGzip = gzipSync(osmdSource, { level: 9 });
 await writeFile(join(dist, `${osmdUrl.slice(2)}.gz`), osmdGzip);
 
+// Viritura's modules find wasm/, fonts/ and their worker relative to themselves,
+// so the distribution keeps its layout under one content-hashed directory. Only
+// the files the viewer loads are published.
+const viritura = resolve(virituraArg);
+const virituraManifest = JSON.parse(await readFile(join(viritura, 'manifest.json'), 'utf8'));
+const virituraFiles = ['score-viewer.js', 'score-engine.js', 'score-engine.worker.js'];
+for (const directory of ['wasm', 'fonts']) {
+  for (const name of (await readdir(join(viritura, directory))).sort()) virituraFiles.push(`${directory}/${name}`);
+}
+const virituraContents = new Map();
+for (const path of virituraFiles) virituraContents.set(path, await readFile(join(viritura, path)));
+const virituraHash = hash(Buffer.concat([...virituraContents].flatMap(([path, contents]) => [Buffer.from(`${path}\0`), contents])));
+const virituraDirectory = `viritura.${virituraHash}`;
+let virituraBytes = 0;
+let virituraGzipBytes = 0;
+for (const [path, contents] of virituraContents) {
+  const target = join(assets, virituraDirectory, path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, contents);
+  virituraBytes += contents.byteLength;
+  if (/\.(js|wasm|otf)$/.test(path)) {
+    const compressed = gzipSync(contents, { level: 9 });
+    await writeFile(`${target}.gz`, compressed);
+    virituraGzipBytes += compressed.byteLength;
+  } else {
+    virituraGzipBytes += contents.byteLength;
+  }
+}
+const virituraViewerUrl = `./assets/${virituraDirectory}/score-viewer.js`;
+
 let previewSource = await readFile(join(source, 'preview.js'), 'utf8');
-previewSource = previewSource.replace('__OSMD_SCRIPT_URL__', osmdUrl.replace('./assets/', './'));
+previewSource = previewSource
+  .replace('__OSMD_SCRIPT_URL__', osmdUrl.replace('./assets/', './'))
+  .replace('__VIRITURA_VIEWER_URL__', virituraViewerUrl.replace('./assets/', './'));
 const previewUrl = await emit('preview', 'js', previewSource);
 
 let workerSource = await readFile(join(source, 'worker.js'), 'utf8');
@@ -87,10 +119,16 @@ const stylesSource = await readFile(join(source, 'styles.css'));
 const stylesUrl = await emit('styles', 'css', stylesSource);
 
 let html = await readFile(join(source, 'index.html'), 'utf8');
-html = html.replace('__STYLES_URL__', stylesUrl).replace('__APP_URL__', appUrl);
+html = html
+  .replace('__STYLES_URL__', stylesUrl)
+  .replace('__APP_URL__', appUrl)
+  .replace('__VIRITURA_VERSION__', virituraManifest.scoreViewerVersion);
 await writeFile(join(dist, 'index.html'), html);
 await cp(join(root, 'LICENSE'), join(dist, 'LICENSE.txt'));
 await cp(join(root, 'node_modules', 'opensheetmusicdisplay', 'LICENSE'), join(dist, 'LICENSE-OSMD.txt'));
+await cp(join(viritura, 'LICENSE'), join(dist, 'LICENSE-Viritura.txt'));
+await cp(join(viritura, 'LICENSES', 'OFL-1.1.txt'), join(dist, 'LICENSE-OFL.txt'));
+await cp(join(viritura, 'THIRD_PARTY_NOTICES.md'), join(dist, 'NOTICES-Viritura.txt'));
 await cp(join(root, 'deploy', 'apache.htaccess'), join(dist, '.htaccess'));
 await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   buildVersion,
@@ -102,12 +140,18 @@ await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   zip: zipUrl,
   preview: previewUrl,
   osmd: osmdUrl,
+  virituraViewer: virituraViewerUrl,
+  virituraVersion: virituraManifest.scoreViewerVersion,
+  virituraEngineVersion: virituraManifest.version,
+  virituraCommit: virituraManifest.commit,
   app: appUrl,
   styles: stylesUrl,
   wasmBytes: wasm.byteLength,
   wasmGzipBytes: wasmGzip.byteLength,
   osmdBytes: osmdSource.byteLength,
-  osmdGzipBytes: osmdGzip.byteLength
+  osmdGzipBytes: osmdGzip.byteLength,
+  virituraBytes,
+  virituraGzipBytes
 }, null, 2)}\n`);
 
 console.log(`Built ${dist}`);
@@ -115,3 +159,4 @@ console.log(`${basename(wasmUrl)}: ${wasm.byteLength} bytes`);
 console.log(`${basename(wasmUrl)}.gz: ${wasmGzip.byteLength} bytes`);
 console.log(`${basename(osmdUrl)}: ${osmdSource.byteLength} bytes`);
 console.log(`${basename(osmdUrl)}.gz: ${osmdGzip.byteLength} bytes`);
+console.log(`${virituraDirectory}: ${virituraBytes} bytes (${virituraGzipBytes} bytes gzipped)`);

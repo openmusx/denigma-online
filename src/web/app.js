@@ -97,6 +97,8 @@ function clearPreview() {
   elements.previewError.textContent = '';
   elements.previewError.hidden = true;
   elements.printPreview.disabled = true;
+  elements.previewScoreLabel.hidden = true;
+  elements.previewScore.replaceChildren();
   elements.previewSection.hidden = true;
 }
 
@@ -286,31 +288,57 @@ async function saveOutput(output) {
   }
 }
 
+function showPreviewError(error, action = 'Preview') {
+  elements.previewError.textContent = `${action} failed: ${error.message || error}`;
+  elements.previewError.hidden = false;
+  // A failed print leaves the preview itself intact.
+  if (action === 'Preview') elements.previewStatus.textContent = '';
+}
+
+function showPreviewScores(preview) {
+  if (!(preview.scores?.length > 1)) return;
+  elements.previewScore.replaceChildren(...preview.scores.map(({ index, name }) => new Option(name || `Score ${index + 1}`, String(index))));
+  elements.previewScore.value = String(preview.scoreIndex);
+  elements.previewScoreLabel.hidden = false;
+}
+
 async function previewOutput(output, button) {
   clearPreview();
   const sequence = previewSequence;
+  const isMnx = output.formatKey === 'mnx';
   elements.previewHeading.textContent = `Score preview · ${output.name}`;
+  elements.previewGuidanceFormat.textContent = FORMATS[output.formatKey].label.replace(/ \(.*\)$/, '');
+  elements.previewLicenseOsmd.hidden = isMnx;
+  elements.previewLicenseViritura.hidden = !isMnx;
   elements.previewStatus.textContent = 'Rendering preview…';
   elements.previewSection.hidden = false;
   button.disabled = true;
   button.textContent = 'Rendering…';
   try {
     previewModulePromise ||= import(new URL(PREVIEW_MODULE_URL, import.meta.url).href);
-    const { renderMusicXmlPreview } = await previewModulePromise;
-    const preview = await renderMusicXmlPreview(elements.previewCanvas, output.blob, output.pageSize);
+    const { renderMnxPreview, renderMusicXmlPreview } = await previewModulePromise;
+    const preview = isMnx
+      ? await renderMnxPreview(elements.previewCanvas, output.blob, [
+        { name: elements.scoreName.textContent, pageSize: scorePageSize },
+        ...parts.map(({ name, pageSize }) => ({ name, pageSize }))
+      ], {
+        onError(error) {
+          if (sequence === previewSequence) showPreviewError(error);
+        }
+      })
+      : await renderMusicXmlPreview(elements.previewCanvas, output.blob, output.pageSize);
     if (sequence !== previewSequence) {
       preview.destroy();
       return;
     }
     activePreview = preview;
+    showPreviewScores(preview);
     elements.printPreview.disabled = false;
     elements.previewStatus.textContent = 'Preview ready.';
     elements.previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     if (sequence !== previewSequence) return;
-    elements.previewError.textContent = `Preview failed: ${error.message || error}`;
-    elements.previewError.hidden = false;
-    elements.previewStatus.textContent = '';
+    showPreviewError(error);
   } finally {
     if (button.isConnected) {
       button.disabled = false;
@@ -325,6 +353,7 @@ function renderOutputs(rawOutputs) {
   const format = selectedFormat();
   const named = rawOutputs.map((output, index) => ({
     name: outputFileName(inputFile.name, formatKey, output.suggestedName, index, rawOutputs.length),
+    formatKey,
     data: output.data,
     pageSize: output.outputIndex === 0
       ? scorePageSize
@@ -350,7 +379,7 @@ function renderOutputs(rawOutputs) {
     item.append(info);
     const itemActions = document.createElement('div');
     itemActions.className = 'output-item-actions';
-    if (formatKey === 'musicxml') {
+    if (formatKey === 'musicxml' || formatKey === 'mnx') {
       const preview = document.createElement('button');
       preview.type = 'button';
       preview.className = 'secondary small';
@@ -590,10 +619,34 @@ elements.copyReport.addEventListener('click', async () => {
 });
 
 elements.closePreview.addEventListener('click', clearPreview);
-elements.printPreview.addEventListener('click', () => {
-  if (!activePreview) return;
-  const removePageRule = addPrintPageRule(activePreview.pageSize);
-  window.addEventListener('afterprint', removePageRule, { once: true });
+elements.previewScore.addEventListener('change', () => {
+  elements.previewError.hidden = true;
+  activePreview?.setScoreIndex?.(Number(elements.previewScore.value));
+});
+elements.printPreview.addEventListener('click', async () => {
+  const preview = activePreview;
+  if (!preview) return;
+  let removePrintPages = () => {};
+  if (preview.preparePrint) {
+    elements.printPreview.disabled = true;
+    try {
+      removePrintPages = await preview.preparePrint();
+    } catch (error) {
+      if (preview === activePreview) showPreviewError(error, 'Printing');
+      return;
+    } finally {
+      if (preview === activePreview) elements.printPreview.disabled = false;
+    }
+    if (preview !== activePreview) {
+      removePrintPages();
+      return;
+    }
+  }
+  const removePageRule = addPrintPageRule(preview.pageSize);
+  window.addEventListener('afterprint', () => {
+    removePageRule();
+    removePrintPages();
+  }, { once: true });
   window.print();
 });
 

@@ -24,9 +24,15 @@ document data stays in the browser.
   resized so the spatium remains proportional to the page. Because OSMD accepts
   only one global margin set, the preview uses the resolved first-page vertical
   margins and the average of its left and right margins throughout.
+- Lazily loads the Viritura score viewer when a generated MNX document is
+  previewed. Denigma writes the score and each linked part as an MNX `scores[]`
+  entry, and the preview offers a selector for them. Each is laid out with the
+  page size, spatium, and all four first-page margins of the matching score or
+  linked part, and printing exports every page as SVG.
 
 There is no backend, service worker, analytics, telemetry, CDN, remote font, or
-third-party runtime service. OSMD is bundled locally and is not downloaded
+third-party runtime service. OSMD and the Viritura score viewer (with its
+Bravura and Libertinus Serif fonts) are bundled locally and are not downloaded
 unless a user opens a preview.
 
 ## Requirements
@@ -34,7 +40,8 @@ unless a user opens a preview.
 - CMake 3.24 or newer
 - Emscripten (tested with 5.0.7), used whenever Denigma is built from source
 - Node.js 20 or newer (build scripts and tests)
-- Git and network access for the initial Denigma/dependency fetch
+- Git and network access for the initial Denigma/dependency fetch and the
+  pinned Viritura score viewer release
 - Optional: a GitHub token (`gh auth login`, or `GITHUB_TOKEN`) to download the
   module Denigma's CI already built for the pinned revision instead of
   compiling it
@@ -141,6 +148,28 @@ Denigma's own local dependency overrides can also be passed to CMake. See its
 build documentation for `MUSX_LOCAL_PATH`, `MX_LOCAL_PATH`,
 `MNXDOM_LOCAL_PATH`, and `SMUFL_MAPPING_LOCAL_PATH`.
 
+### MNX preview renderer
+
+The MNX preview uses Viritura's standalone score engine and viewer, pinned by
+`VIRITURA_REVISION_PIN` in `CMakeLists.txt`. It is never built here, because
+that needs Viritura's Rust, wasm-pack, and pnpm toolchain. The configure step
+downloads it into `build-wasm/viritura/` from one of two sources:
+
+- **A release tag** (`score-engine-v<version>`, the default). The release zip is
+  checked against its `.sha256` asset. No token is needed.
+- **A commit on Viritura's `main`**, served by that push's
+  `score-engine-<version>-<sha12>` workflow artifact. This needs a GitHub token,
+  and the artifact expires after 90 days, so use it only to try an unreleased
+  fix.
+
+Either way, every file is checked against the SHA-256 hashes in the
+distribution's `manifest.json`, and a stamp keeps later configures from
+downloading it again. `-DVIRITURA_REVISION_OVERRIDE=<tag|commit>` builds another
+revision without editing the pin. `-DVIRITURA_DIST_DIR=<path>` uses a local
+distribution instead, for example one built with `pnpm build:score-engine-dist`
+in a Viritura checkout (`npm run configure:local-viritura` for
+`../../Viritura/dist/score-engine`).
+
 ## Visual Studio Code
 
 Repository-local recommendations are tracked in `.vscode_template/`. Create the
@@ -217,14 +246,14 @@ Recommended response headers:
 # index.html (and preferably 404/error HTML)
 Cache-Control: no-cache
 
-# /assets/* (all filenames are content-hashed)
+# /assets/* (all filenames, or for the Viritura viewer its directory, are content-hashed)
 Cache-Control: public, max-age=31536000, immutable
 
 # *.wasm
 Content-Type: application/wasm
 
-# optional, recommended for the generated *.wasm.gz sidecar
-Serve it as the corresponding *.wasm URL when Accept-Encoding includes gzip
+# optional, recommended for the generated *.wasm.gz, *.js.gz, and *.otf.gz sidecars
+Serve them as the corresponding uncompressed URL when Accept-Encoding includes gzip
 
 # all responses
 X-Content-Type-Options: nosniff
@@ -248,8 +277,9 @@ only performs normal `GET` requests for its own static assets.
 The selected MUSX bytes are transferred from the page to a same-origin Web
 Worker and copied into WebAssembly memory. Generated files return to the page as
 local `Blob` objects. Previewed MusicXML remains in the page and is passed
-directly to the locally bundled OSMD renderer. No source or output bytes are
-sent over the network.
+directly to the locally bundled OSMD renderer; previewed MNX is passed to the
+locally bundled Viritura score viewer, which lays it out in a same-origin
+worker. No source or output bytes are sent over the network.
 
 The diagnostic report contains the Denigma version and commit, the Denigma
 Online commit and build hash, output format, settings, and Denigma messages.
@@ -273,9 +303,10 @@ Browsers control the last open/download folder for standard dialogs. Chromium's
 save picker receives a stable picker ID so it can remember its last location.
 No directory handles are persisted by the application.
 
-OSMD is fetched as a separate, immutable, content-hashed asset only after a
-Preview button is used. Its BSD-3-Clause license link is likewise shown only
-inside the opened preview panel.
+OSMD and the Viritura score viewer are fetched as separate, immutable,
+content-hashed assets only after a Preview button is used for a document of
+their format. Their license links are likewise shown only inside the opened
+preview panel.
 
 ## WASM size
 
@@ -306,6 +337,31 @@ The browser requests neither this asset nor the 4,196-byte preview adapter
 until a user clicks Preview. With the generated Apache configuration, opening a
 preview therefore adds 336,500 transferred bytes beyond the normal application
 load. Subsequent previews reuse the immutable cached renderer.
+
+The Viritura score viewer used for MNX previews is also optional. It is
+published as one content-hashed directory, because its modules find `wasm/`,
+`fonts/`, and their layout worker relative to themselves. For
+`score-engine-v0.1.0`:
+
+```text
+viritura.30b72ca1fc22/:  6,255,824 bytes (5.97 MiB)
+  gzipped:               2,791,188 bytes (2.66 MiB)
+```
+
+Most of that is the 4.4 MB layout engine (1.5 MB gzipped) and the Bravura and
+Libertinus Serif fonts (1.6 MB, 1.2 MB gzipped). Nothing in it is requested
+until a user previews an MNX document.
+
+## Updating the Viritura score viewer
+
+1. Choose a `score-engine-v<version>` release of Viritura and read the score
+   engine and score viewer changelogs for breaking changes.
+2. Change `VIRITURA_REVISION_PIN` in `CMakeLists.txt` to the release tag.
+3. Configure `build-wasm` and build `web_dist`. The configure step downloads
+   the new release.
+4. Run `npm test`, then preview MNX output from a MUSX with linked parts:
+   switch between the score and the parts, resize the window, and print.
+5. Record the new viewer size in this README.
 
 ## Updating Denigma
 

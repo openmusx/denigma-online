@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 const OSMD_SCRIPT_URL = '__OSMD_SCRIPT_URL__';
+const VIRITURA_VIEWER_URL = '__VIRITURA_VIEWER_URL__';
+// Viritura lays pages out in display-list units; at zoom 1 one unit is one CSS pixel.
+const MNX_PAGE_WIDTH = 800;
+const MNX_PAGE_GAP = 16;
 let constructorPromise;
+let virituraViewerPromise;
 
 export function sourcePageZoom(widthPx, pageSize) {
   if (!(widthPx > 0 && pageSize?.widthMm > 0 && pageSize?.spatiumMm > 0)) return undefined;
@@ -25,6 +30,34 @@ export function sourcePageMargins(pageSize) {
     PageLeftMargin: horizontalMargin,
     PageRightMargin: horizontalMargin
   };
+}
+
+// Maps Denigma's source page metrics to Viritura's page options, keeping the
+// page proportions and the ratio of spatium to page width. Unlike OSMD, Viritura
+// takes all four margins, so none are averaged.
+export function mnxPageLayout(pageSize, pageWidth = MNX_PAGE_WIDTH) {
+  if (!(pageSize?.widthMm > 0 && pageSize?.heightMm > 0)) return undefined;
+  const unitsPerMm = pageWidth / pageSize.widthMm;
+  const layout = { pageWidth, pageHeight: pageSize.heightMm * unitsPerMm };
+  if (!(pageSize.spatiumMm > 0)) return layout;
+  layout.spatium = pageSize.spatiumMm * unitsPerMm;
+  const margins = [pageSize.marginTopSp, pageSize.marginRightSp, pageSize.marginBottomSp, pageSize.marginLeftSp];
+  if (pageSize.hasMargins && margins.every(Number.isFinite)) {
+    const [top, right, bottom, left] = margins.map((value) => value * layout.spatium);
+    layout.pageMargins = { top, right, bottom, left };
+  }
+  return layout;
+}
+
+// Denigma writes one MNX score per linked part, named as inspection names the
+// score and parts. Names are matched in order, so duplicates pair up in turn; a
+// score with no match keeps Viritura's default page.
+export function mnxScorePageSizes(scoreNames, candidates) {
+  const unused = [...candidates];
+  return scoreNames.map((name) => {
+    const index = unused.findIndex((candidate) => candidate.name === name);
+    return index < 0 ? undefined : unused.splice(index, 1)[0].pageSize;
+  });
 }
 
 function loadOsmd() {
@@ -112,6 +145,127 @@ export async function renderMusicXmlPreview(container, musicXml, pageSize) {
       renderer.clear();
       renderSurface.remove();
       container.style.maxHeight = '';
+    }
+  };
+}
+
+function loadViritura() {
+  virituraViewerPromise ||= import(new URL(VIRITURA_VIEWER_URL, import.meta.url).href).catch((error) => {
+    virituraViewerPromise = undefined;
+    throw error;
+  });
+  return virituraViewerPromise;
+}
+
+// Every page option is passed, so switching to a score without source metrics
+// returns it to Viritura's defaults instead of keeping the previous score's.
+function virituraPageOptions(pageSize) {
+  return { pageWidth: undefined, pageHeight: undefined, spatium: undefined, pageMargins: undefined, ...mnxPageLayout(pageSize) };
+}
+
+export async function renderMnxPreview(container, mnx, candidates, { onError } = {}) {
+  const text = typeof mnx === 'string' ? mnx : await mnx.text();
+  const parsed = JSON.parse(text);
+  const scores = (Array.isArray(parsed.scores) ? parsed.scores : [])
+    .map((score, index) => ({ index, name: typeof score?.name === 'string' ? score.name : '' }));
+  // Without scores[] Viritura renders the full score, which has the score's page.
+  const pageSizes = scores.length
+    ? mnxScorePageSizes(scores.map(({ name }) => name), candidates)
+    : [candidates[0]?.pageSize];
+  let scoreIndex = 0;
+
+  container.style.maxHeight = '';
+  container.classList.add('preview-canvas-viritura');
+  const renderSurface = document.createElement('div');
+  renderSurface.className = 'preview-viritura-surface';
+  container.replaceChildren(renderSurface);
+  const { mountScore } = await loadViritura();
+
+  let viewer;
+  let settled = false;
+  let lastHeight = 0;
+  // The viewer scrolls inside the surface; like the OSMD preview, show at most
+  // one and a half pages of the first page's rendered height.
+  function sizeToFirstPage() {
+    const { positions, height } = viewer.arrangement;
+    const firstPage = positions[0];
+    if (!firstPage) return;
+    const surfaceHeight = Math.min(height, previewHeightForPage(firstPage.height)) + 2 * MNX_PAGE_GAP;
+    if (Math.abs(surfaceHeight - lastHeight) < 1) return;
+    lastHeight = surfaceHeight;
+    renderSurface.style.height = `${surfaceHeight}px`;
+  }
+
+  await new Promise((resolve, reject) => {
+    viewer = mountScore(renderSurface, text, {
+      viewMode: 'page',
+      zoom: 'fit-width',
+      contentAlign: 'center',
+      pageGap: MNX_PAGE_GAP,
+      pageBackground: '#ffffff',
+      useWorker: true,
+      scoreIndex,
+      ...virituraPageOptions(pageSizes[scoreIndex]),
+      onLayout() {
+        sizeToFirstPage();
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+      },
+      onPaint: () => sizeToFirstPage(),
+      onError(error) {
+        if (!settled) {
+          settled = true;
+          reject(error);
+        } else {
+          onError?.(error);
+        }
+      }
+    });
+  }).catch((error) => {
+    viewer?.destroy();
+    renderSurface.remove();
+    container.classList.remove('preview-canvas-viritura');
+    throw error;
+  });
+
+  return {
+    renderer: viewer,
+    scores,
+    get scoreIndex() {
+      return scoreIndex;
+    },
+    get pageSize() {
+      return pageSizes[scoreIndex];
+    },
+    setScoreIndex(index) {
+      if (!Number.isInteger(index) || index < 0 || index >= scores.length || index === scoreIndex) return;
+      scoreIndex = index;
+      viewer.setOptions({ scoreIndex, ...virituraPageOptions(pageSizes[scoreIndex]) });
+    },
+    // The viewer paints only the pages in view, so printing uses a standalone
+    // SVG of every page, shown only in print media.
+    async preparePrint() {
+      const { engine, displayList, measurements } = viewer;
+      if (!engine || !displayList || !measurements) throw new Error('The preview has not finished rendering.');
+      const printPages = document.createElement('div');
+      printPages.className = 'preview-print-pages';
+      for (let page = 0; page < measurements.pageCount; page += 1) {
+        const image = new Image();
+        image.alt = `Page ${page + 1}`;
+        image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(await engine.toSvg(displayList, { page }))}`;
+        printPages.append(image);
+      }
+      await Promise.all(Array.from(printPages.children, (image) => image.decode().catch(() => {})));
+      container.append(printPages);
+      return () => printPages.remove();
+    },
+    destroy() {
+      viewer.destroy();
+      renderSurface.remove();
+      container.querySelector('.preview-print-pages')?.remove();
+      container.classList.remove('preview-canvas-viritura');
     }
   };
 }
