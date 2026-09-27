@@ -10,11 +10,12 @@
     "configure": "node scripts/configure.mjs",
     "configure:local": "node scripts/configure.mjs --denigma ../denigma",
     "configure:source": "node scripts/configure.mjs --source-build",
+    "configure:local-viritura": "node scripts/configure.mjs --viritura ../../Viritura/dist/score-engine",
     "build": "cmake --build build-wasm --target web_dist --parallel 2",
     "serve": "node scripts/serve.mjs dist 8080",
     "test": "node --test tests/*.test.mjs",
     "test:wasm": "node tests/wasm-smoke.mjs build-wasm/wasm/denigma.js build-wasm/wasm/denigma.wasm tests/data/linked-parts.musx",
-    "build:web": "node scripts/build-web.mjs build-wasm/wasm/denigma.js build-wasm/wasm/denigma.wasm"
+    "build:web": "node scripts/build-web.mjs build-wasm/wasm/denigma.js build-wasm/wasm/denigma.wasm build-wasm/viritura"
   },
   "engines": {
     "node": ">=20"

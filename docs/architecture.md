@@ -116,3 +116,25 @@ depends on an unhashed WASM alias.
 The application makes no fetch/XHR calls. Emscripten fetches its same-origin
 WASM asset as part of module initialization; every other network request is a
 normal static module or stylesheet request.
+
+## MNX preview
+
+MNX previews use Viritura's standalone score engine and viewer, fetched for a
+pinned `score-engine-v*` release by `scripts/fetch-viritura-viewer.mjs` and
+checked against the distribution's `manifest.json`. The build publishes its
+modules, `wasm/`, and `fonts/` under one content-hashed directory without
+renaming any file, because the modules resolve those files and their layout
+worker relative to their own URL. `preview.js` imports `score-viewer.js` only
+when an MNX document is previewed.
+
+OSMD stays the MusicXML previewer. The Viritura distribution renders MNX only,
+and a MusicXML preview has to show the MusicXML file the user downloads rather
+than a different conversion of the same score.
+
+Denigma writes the score and each linked part as an entry in MNX `scores[]`,
+named the same way the inspection names them (including the `Score` and
+`Part <id>` fallbacks). The preview pairs each entry with the inspected page
+size by name, converts the page size, spatium, and four margins to Viritura's
+layout units, and relays out when another entry is selected. The viewer
+creates canvases only for visible pages, so printing first exports every page
+with `engine.toSvg` into print-only images.

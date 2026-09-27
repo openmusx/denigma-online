@@ -54,7 +54,8 @@ if (emConfig) {
       },
       cacheVariables: {
         DENIGMA_SOURCE_DIR: '',
-        DENIGMA_WASM_PREBUILT: 'ON'
+        DENIGMA_WASM_PREBUILT: 'ON',
+        VIRITURA_DIST_DIR: ''
       }
     };
     if (process.platform === 'win32') {

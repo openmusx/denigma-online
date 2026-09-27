@@ -150,17 +150,19 @@
         <div class="preview-heading">
           <div>
             <h3 id="previewHeading">Score preview</h3>
-            <p class="preview-guidance"><strong>Looks wrong?</strong> Open the downloaded MusicXML in your music app before reporting a problem.</p>
+            <p class="preview-guidance"><strong>Looks wrong?</strong> Open the downloaded <span id="previewGuidanceFormat">MusicXML</span> in your music app before reporting a problem.</p>
             <p id="previewStatus" class="help" role="status" aria-live="polite"></p>
           </div>
           <div class="preview-actions">
+            <label id="previewScoreLabel" class="preview-score" hidden>Show <select id="previewScore"></select></label>
             <button id="printPreview" type="button" class="secondary small" disabled>Print…</button>
             <button id="closePreview" type="button" class="secondary small">Close preview</button>
           </div>
         </div>
         <p id="previewError" class="input-error" role="alert" hidden></p>
         <div id="previewCanvas" class="preview-canvas" tabindex="0" aria-label="Scrollable score preview"></div>
-        <p class="preview-license">Preview rendering by OpenSheetMusicDisplay 2.1.1 · <a href="./LICENSE-OSMD.txt" target="_blank" rel="noreferrer">BSD-3-Clause license</a></p>
+        <p id="previewLicenseOsmd" class="preview-license">Preview rendering by OpenSheetMusicDisplay 2.1.1 · <a href="./LICENSE-OSMD.txt" target="_blank" rel="noreferrer">BSD-3-Clause license</a></p>
+        <p id="previewLicenseViritura" class="preview-license" hidden>Preview rendering by the Viritura score viewer __VIRITURA_VERSION__ · <a href="./LICENSE-Viritura.txt" target="_blank" rel="noreferrer">MIT license</a> · Bravura and Libertinus Serif fonts under the <a href="./LICENSE-OFL.txt" target="_blank" rel="noreferrer">SIL Open Font License</a> · <a href="./NOTICES-Viritura.txt" target="_blank" rel="noreferrer">notices</a></p>
       </section>
 
       <section id="diagnosticsSection" aria-labelledby="diagnosticsHeading" hidden>
