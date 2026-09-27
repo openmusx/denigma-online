@@ -5,6 +5,7 @@ import createDenigmaModule from '__DENIGMA_MODULE_URL__';
 
 const wasmUrl = new URL('__DENIGMA_WASM_URL__', import.meta.url).href;
 let Module;
+let modulePromise;
 let selectedBytes;
 let selectedName = '';
 
@@ -105,8 +106,12 @@ function withInput(callback) {
   try {
     return callback(inputPointer, namePointer);
   } finally {
-    Module._denigma_free(inputPointer);
-    Module._denigma_free(namePointer);
+    // After an abort the instance is discarded, so a failed free must not
+    // replace the error that caused it.
+    try {
+      Module._denigma_free(inputPointer);
+      Module._denigma_free(namePointer);
+    } catch {}
   }
 }
 
@@ -154,8 +159,9 @@ function convert(options) {
   });
 }
 
-async function initialize() {
-  Module = await createDenigmaModule({
+function loadModule() {
+  Module = undefined;
+  modulePromise = createDenigmaModule({
     locateFile(path) {
       return path.endsWith('.wasm') ? wasmUrl : path;
     },
@@ -163,7 +169,25 @@ async function initialize() {
     printErr(message) {
       postMessage({ type: 'runtime-message', message: String(message) });
     }
+  }).then((instance) => {
+    Module = instance;
+    return instance;
   });
+  return modulePromise;
+}
+
+// A failed request can leave the WebAssembly instance unusable: an abort, such as
+// a stack overflow, stops it, and an exhausted heap stays at its maximum size. Each
+// failure therefore replaces the instance, so the next request starts clean. The
+// selected file stays in the worker, and the new instance reads it on first use.
+function replaceModule() {
+  loadModule().catch((error) => {
+    postMessage({ type: 'load-error', message: error instanceof Error ? error.message : String(error) });
+  });
+}
+
+async function initialize() {
+  await loadModule();
   postMessage({
     type: 'ready',
     denigmaVersion: stringAt(Module._denigma_version()),
@@ -173,18 +197,21 @@ async function initialize() {
   });
 }
 
-self.addEventListener('message', ({ data }) => {
+self.addEventListener('message', async ({ data }) => {
   try {
+    await modulePromise;
     if (data.type === 'inspect') {
       selectedBytes = new Uint8Array(data.buffer);
       selectedName = data.fileName;
       const result = inspect();
       postMessage({ type: 'inspected', requestId: data.requestId, ...result.value });
+      if (!result.value.success) replaceModule();
       return;
     }
     if (data.type === 'convert') {
       const result = convert(data.options);
       postMessage({ type: 'converted', requestId: data.requestId, ...result.value }, result.transfers);
+      if (!result.value.success) replaceModule();
     }
   } catch (error) {
     postMessage({
@@ -192,6 +219,7 @@ self.addEventListener('message', ({ data }) => {
       requestId: data.requestId,
       message: error instanceof Error ? error.message : String(error)
     });
+    replaceModule();
   }
 });
 

@@ -53,6 +53,18 @@ export function formatBytes(bytes) {
 
 export const VISIBLE_SEVERITIES = Object.freeze(['warning', 'error']);
 
+// Resource exhaustion reaches the page as a C++ exception name or an Emscripten
+// abort. Both are restated in plain words, keeping the original for reports.
+export function describeFailure(message) {
+  if (/Aborted\(stack overflow/.test(message)) {
+    return `Denigma ran out of stack space while converting this file. (${message})`;
+  }
+  if (/\bbad_alloc\b|Cannot enlarge memory|out of memory/i.test(message)) {
+    return `Denigma ran out of memory while converting this file. (${message})`;
+  }
+  return message;
+}
+
 export function visibleDiagnostics(diagnostics) {
   return diagnostics.filter((item) => VISIBLE_SEVERITIES.includes(item.severity));
 }

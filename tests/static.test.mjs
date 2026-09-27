@@ -236,6 +236,18 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });
 
+test('a failed request replaces the WebAssembly instance before the next one', async () => {
+  const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  assert.match(worker, /function replaceModule\(\)/);
+  assert.match(worker, /await modulePromise;/);
+  // A result that reports failure and a thrown abort both discard the instance.
+  assert.equal(worker.match(/if \(!result\.value\.success\) replaceModule\(\);/g)?.length, 2);
+  assert.match(worker, /message: error instanceof Error \? error\.message : String\(error\)\n    \}\);\n    replaceModule\(\);/);
+  assert.match(app, /handleFailure\(`Conversion failed: \$\{describeFailure\(data\.message\)\}`\)/);
+  assert.match(app, /message: describeFailure\(item\.message\)/);
+});
+
 test('production builds include Apache caching and compressed WASM rules', async () => {
   const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
   const apache = await readFile(new URL('../deploy/apache.htaccess', import.meta.url), 'utf8');
