@@ -236,14 +236,14 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });
 
-test('a failed request replaces the WebAssembly instance before the next one', async () => {
+test('the worker runs every request through the module host', async () => {
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
-  assert.match(worker, /function replaceModule\(\)/);
-  assert.match(worker, /await modulePromise;/);
-  // A result that reports failure and a thrown abort both discard the instance.
-  assert.equal(worker.match(/if \(!result\.value\.success\) replaceModule\(\);/g)?.length, 2);
-  assert.match(worker, /message: error instanceof Error \? error\.message : String\(error\)\n    \}\);\n    replaceModule\(\);/);
+  const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
+  assert.match(worker, /import \{ createModuleHost \} from '__MODULE_HOST_URL__';/);
+  assert.match(worker, /succeeded: \(result\) => result\.value\.success/);
+  assert.equal(worker.match(/await host\.run\(\(instance\) => \{\n        Module = instance;/g)?.length, 2);
+  assert.match(build, /\.replace\('__MODULE_HOST_URL__', moduleHostUrl/);
   assert.match(app, /handleFailure\(`Conversion failed: \$\{describeFailure\(data\.message\)\}`\)/);
   assert.match(app, /message: describeFailure\(item\.message\)/);
 });
