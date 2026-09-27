@@ -93,9 +93,13 @@ previewSource = previewSource
   .replace('__VIRITURA_VIEWER_URL__', virituraViewerUrl.replace('./assets/', './'));
 const previewUrl = await emit('preview', 'js', previewSource);
 
+const moduleHostSource = await readFile(join(source, 'module-host.js'));
+const moduleHostUrl = await emit('module-host', 'js', moduleHostSource);
+
 let workerSource = await readFile(join(source, 'worker.js'), 'utf8');
 workerSource = workerSource
   .replace('__DENIGMA_MODULE_URL__', moduleUrl.replace('./assets/', './'))
+  .replace('__MODULE_HOST_URL__', moduleHostUrl.replace('./assets/', './'))
   .replace('__DENIGMA_WASM_URL__', wasmUrl.replace('./assets/', './'))
   .replace('__DENIGMA_ONLINE_COMMIT__', denigmaOnlineCommit)
   .replace('__BUILD_VERSION__', buildVersion);
@@ -136,6 +140,7 @@ await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   wasm: wasmUrl,
   module: moduleUrl,
   worker: workerUrl,
+  moduleHost: moduleHostUrl,
   core: coreUrl,
   zip: zipUrl,
   preview: previewUrl,

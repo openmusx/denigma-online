@@ -4,6 +4,7 @@
 import {
   FORMATS,
   baseName,
+  describeFailure,
   diagnosticReport,
   formatBytes,
   isSupportedInputFile,
@@ -461,8 +462,11 @@ worker.addEventListener('message', ({ data }) => {
   }
   if (data.requestId && data.requestId !== pendingRequest) return;
   if (data.type === 'worker-error') {
-    handleFailure(`Conversion failed: ${data.message}`);
+    handleFailure(`Conversion failed: ${describeFailure(data.message)}`);
     return;
+  }
+  if (Array.isArray(data.diagnostics)) {
+    data.diagnostics = data.diagnostics.map((item) => ({ ...item, message: describeFailure(item.message) }));
   }
   if (data.type === 'inspected') {
     diagnostics = data.diagnostics;

@@ -236,6 +236,18 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });
 
+test('the worker runs every request through the module host', async () => {
+  const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
+  const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
+  assert.match(worker, /import \{ createModuleHost \} from '__MODULE_HOST_URL__';/);
+  assert.match(worker, /succeeded: \(result\) => result\.value\.success/);
+  assert.equal(worker.match(/await host\.run\(\(instance\) => \{\n        Module = instance;/g)?.length, 2);
+  assert.match(build, /\.replace\('__MODULE_HOST_URL__', moduleHostUrl/);
+  assert.match(app, /handleFailure\(`Conversion failed: \$\{describeFailure\(data\.message\)\}`\)/);
+  assert.match(app, /message: describeFailure\(item\.message\)/);
+});
+
 test('production builds include Apache caching and compressed WASM rules', async () => {
   const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
   const apache = await readFile(new URL('../deploy/apache.htaccess', import.meta.url), 'utf8');

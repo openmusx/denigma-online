@@ -204,3 +204,24 @@ try {
   Module._denigma_free(sourcePointer);
   Module._denigma_free(inputPointer);
 }
+
+// MusicXML export of this file needs more than Emscripten's default 64 KiB stack.
+// Denigma's module aborts on a stack overflow rather than corrupting itself, so a
+// stack that shrinks again fails here; the MNX export that follows in the same
+// module shows that nothing was damaged.
+const deepStackName = 'harmonics_artificial.musx';
+const deepStackInput = await readFile(resolve(import.meta.dirname, 'data', deepStackName));
+withAllocatedInput(deepStackInput, deepStackName, (dataPointer, namePointer) => {
+  const selectionPointer = Module._denigma_malloc(4);
+  new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
+  try {
+    assertResult(
+      Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 1, 0),
+      `${deepStackName} to MusicXML`, '<score-partwise', 1, false, [0]);
+  } finally {
+    Module._denigma_free(selectionPointer);
+  }
+  assertResult(
+    Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0),
+    `${deepStackName} to MNX after MusicXML`, '"mnx"');
+});

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import createDenigmaModule from '__DENIGMA_MODULE_URL__';
+import { createModuleHost } from '__MODULE_HOST_URL__';
 
 const wasmUrl = new URL('__DENIGMA_WASM_URL__', import.meta.url).href;
+// The instance the current request runs on; the helpers below all use it.
 let Module;
 let selectedBytes;
 let selectedName = '';
@@ -105,8 +107,12 @@ function withInput(callback) {
   try {
     return callback(inputPointer, namePointer);
   } finally {
-    Module._denigma_free(inputPointer);
-    Module._denigma_free(namePointer);
+    // After an abort the instance is discarded, so a failed free must not
+    // replace the error that caused it.
+    try {
+      Module._denigma_free(inputPointer);
+      Module._denigma_free(namePointer);
+    } catch {}
   }
 }
 
@@ -154,8 +160,14 @@ function convert(options) {
   });
 }
 
-async function initialize() {
-  Module = await createDenigmaModule({
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// The selected file stays in the worker, so a replacement instance reads it again
+// on its first request.
+const host = createModuleHost({
+  create: () => createDenigmaModule({
     locateFile(path) {
       return path.endsWith('.wasm') ? wasmUrl : path;
     },
@@ -163,7 +175,13 @@ async function initialize() {
     printErr(message) {
       postMessage({ type: 'runtime-message', message: String(message) });
     }
-  });
+  }),
+  succeeded: (result) => result.value.success,
+  onLoadError: (error) => postMessage({ type: 'load-error', message: errorMessage(error) })
+});
+
+async function initialize() {
+  Module = await host.load();
   postMessage({
     type: 'ready',
     denigmaVersion: stringAt(Module._denigma_version()),
@@ -173,28 +191,30 @@ async function initialize() {
   });
 }
 
-self.addEventListener('message', ({ data }) => {
+self.addEventListener('message', async ({ data }) => {
   try {
     if (data.type === 'inspect') {
       selectedBytes = new Uint8Array(data.buffer);
       selectedName = data.fileName;
-      const result = inspect();
+      const result = await host.run((instance) => {
+        Module = instance;
+        return inspect();
+      });
       postMessage({ type: 'inspected', requestId: data.requestId, ...result.value });
       return;
     }
     if (data.type === 'convert') {
-      const result = convert(data.options);
+      const result = await host.run((instance) => {
+        Module = instance;
+        return convert(data.options);
+      });
       postMessage({ type: 'converted', requestId: data.requestId, ...result.value }, result.transfers);
     }
   } catch (error) {
-    postMessage({
-      type: 'worker-error',
-      requestId: data.requestId,
-      message: error instanceof Error ? error.message : String(error)
-    });
+    postMessage({ type: 'worker-error', requestId: data.requestId, message: errorMessage(error) });
   }
 });
 
 initialize().catch((error) => {
-  postMessage({ type: 'load-error', message: error instanceof Error ? error.message : String(error) });
+  postMessage({ type: 'load-error', message: errorMessage(error) });
 });

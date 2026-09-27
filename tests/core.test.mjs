@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  describeFailure,
   baseName,
   diagnosticReport,
   formatBytes,
@@ -90,4 +91,12 @@ test('tool version checks compare semantic numeric components', () => {
   assert.equal(versionAtLeast('4.0.0', '3.24.0'), true);
   assert.equal(versionAtLeast('3.23.99', '3.24.0'), false);
   assert.equal(versionAtLeast('19.9.0', '20.0.0'), false);
+});
+
+test('resource exhaustion is described in plain words and keeps the original message', () => {
+  const overflow = 'Aborted(stack overflow (Attempt to set SP to 0x0014b080, with stack limits [0x0014b590 - 0x00153590]).';
+  assert.equal(describeFailure(overflow), `Denigma ran out of stack space while converting this file. (${overflow})`);
+  assert.equal(describeFailure('std::bad_alloc'), 'Denigma ran out of memory while converting this file. (std::bad_alloc)');
+  assert.match(describeFailure('Aborted(Cannot enlarge memory arrays to size 2147549184 bytes (OOM).)'), /^Denigma ran out of memory/);
+  assert.equal(describeFailure('Select the score or at least one linked part.'), 'Select the score or at least one linked part.');
 });
