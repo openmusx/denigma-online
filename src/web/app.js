@@ -14,6 +14,7 @@ import {
   visibleDiagnostics
 } from '__CORE_MODULE_URL__';
 import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
+import { createWorkerHost } from '__WORKER_HOST_URL__';
 
 const ISSUE_URL = 'https://github.com/openmusx/denigma/issues';
 const SETTINGS_STORAGE_KEY = 'denigma-online.settings.v1';
@@ -21,7 +22,12 @@ const PREVIEW_MODULE_URL = '__PREVIEW_MODULE_URL__';
 const canPickSaveFile = 'showSaveFilePicker' in window;
 const canPickDirectory = 'showDirectoryPicker' in window;
 const canZip = supportsCompression();
-const worker = new Worker(new URL('__WORKER_MODULE_URL__', import.meta.url), { type: 'module' });
+const workerHost = createWorkerHost({
+  spawn: () => new Worker(new URL('__WORKER_MODULE_URL__', import.meta.url), { type: 'module' }),
+  onMessage: handleWorkerMessage,
+  readInput: async () => ({ fileName: inputFile.name, buffer: await inputFile.arrayBuffer() })
+});
+workerHost.start();
 const elements = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), (element) => [element.id, element]));
 
 let requestId = 0;
@@ -153,6 +159,7 @@ function settingsSnapshot() {
     mnxTempo: elements.mnxTempo.checked,
     mnxSplit: elements.mnxSplit.checked,
     mnxPretty: elements.mnxPretty.checked,
+    mnxValidate: elements.mnxValidate.checked,
     mnxCueLayer: elements.mnxCueLayer.value
   };
 }
@@ -170,7 +177,7 @@ function restoreSettings() {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null');
     if (!saved || typeof saved !== 'object') return;
     if (Object.hasOwn(FORMATS, saved.format)) elements.format.value = saved.format;
-    for (const id of ['musicxmlTempo', 'musicxmlAllFonts', 'musicxmlFinaleRestPosition', 'mnxTempo', 'mnxSplit', 'mnxPretty']) {
+    for (const id of ['musicxmlTempo', 'musicxmlAllFonts', 'musicxmlFinaleRestPosition', 'mnxTempo', 'mnxSplit', 'mnxPretty', 'mnxValidate']) {
       if (typeof saved[id] === 'boolean') elements[id].checked = saved[id];
     }
     for (const id of ['musicxmlCueLayer', 'mnxCueLayer']) {
@@ -245,6 +252,7 @@ function conversionOptions() {
     useFinaleRestPosition: formatKey === 'musicxml' && elements.musicxmlFinaleRestPosition.checked,
     splitInstruments: formatKey === 'mnx' && elements.mnxSplit.checked,
     indentSpaces: formatKey === 'mnx' && elements.mnxPretty.checked ? 2 : -1,
+    validate: formatKey === 'mnx' && elements.mnxValidate.checked,
     cueLayer: Number(cueSelect?.value || 0),
     selectedOutputs: formatKey === 'musicxml'
       ? Array.from(elements.documents.querySelectorAll('input:checked'), (input) => Number(input.value))
@@ -267,6 +275,7 @@ function reportOptions(options) {
   if (formatKey === 'mnx') {
     result['Split instruments into separate MNX parts'] = options.splitInstruments;
     result['Pretty-print JSON'] = options.indentSpaces >= 0;
+    result['Validate MNX output'] = options.validate;
   }
   return result;
 }
@@ -433,7 +442,7 @@ async function loadFile(file) {
   setStatus(`Reading ${file.name}…`);
   const buffer = await file.arrayBuffer();
   pendingRequest = ++requestId;
-  worker.postMessage({ type: 'inspect', requestId: pendingRequest, fileName: file.name, buffer }, [buffer]);
+  await workerHost.send({ type: 'inspect', requestId: pendingRequest }, { fileName: file.name, buffer });
 }
 
 function handleFailure(message, returnedDiagnostics = []) {
@@ -446,7 +455,7 @@ function handleFailure(message, returnedDiagnostics = []) {
   setBusy(false);
 }
 
-worker.addEventListener('message', ({ data }) => {
+function handleWorkerMessage(data) {
   if (data.type === 'ready') {
     runtime = data;
     wasmReady = true;
@@ -502,7 +511,7 @@ worker.addEventListener('message', ({ data }) => {
     setStatus(`Conversion complete: ${data.outputs.length} file${data.outputs.length === 1 ? '' : 's'} generated${warningCount ? ` with ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}.`, warningCount ? 'warning' : 'success');
     setBusy(false);
   }
-});
+}
 
 elements.file.addEventListener('change', () => {
   const file = elements.file.files?.[0];
@@ -560,7 +569,8 @@ elements.convert.addEventListener('click', () => {
   lastConversion = { formatKey: elements.format.value, options, reportOptions: reportOptions(options) };
   setStatus(`Converting to ${selectedFormat().label}…`);
   pendingRequest = ++requestId;
-  worker.postMessage({ type: 'convert', requestId: pendingRequest, options });
+  workerHost.send({ type: 'convert', requestId: pendingRequest, options })
+    .catch((error) => handleFailure(`Unable to read the file: ${error.message || error}`));
 });
 
 elements.downloadZip.addEventListener('click', async () => {

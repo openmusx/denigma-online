@@ -136,7 +136,7 @@ cmake --build build-wasm --target web_dist -j2
 
 Denigma is then configured and built in that checkout's own ignored
 `build-wasm/` directory with the same arguments its README documents
-(`-DCMAKE_BUILD_TYPE=MinSizeRel -DDENIGMA_CXX_STANDARD=20`, target
+(`-DCMAKE_BUILD_TYPE=Release -DDENIGMA_CXX_STANDARD=20`, target
 `denigma_wasm`), so building the site and running those commands by hand are
 interchangeable and share one incremental build. Every site build re-enters
 that build, which is a no-op when nothing changed. The module reports a
@@ -306,51 +306,9 @@ No directory handles are persisted by the application.
 OSMD and the Viritura score viewer are fetched as separate, immutable,
 content-hashed assets only after a Preview button is used for a document of
 their format. Their license links are likewise shown only inside the opened
-preview panel.
-
-## WASM size
-
-The production build contains one binary with all three exporters:
-
-```text
-denigma.a00551d2fc5f.wasm:    6,695,922 bytes (6.39 MiB)
-denigma.a00551d2fc5f.wasm.gz: 1,675,416 bytes (1.60 MiB)
-```
-
-This size was measured from Denigma's Emscripten 5.0.7 MinSizeRel build at the
-configured Denigma revision. The single binary shares Denigma, MUSX parsing,
-XML, compression, and exporter dependencies and is cached under a content-hashed
-immutable URL. Denigma enables C++ exception catching across the module and all
-linked dependencies so conversion failures can be reported without terminating
-the WebAssembly runtime.
-
-## Preview renderer size
-
-OSMD is a separate optional download:
-
-```text
-osmd.056b0d9b68c5.js:    1,320,279 bytes (1.26 MiB)
-osmd.056b0d9b68c5.js.gz:   332,304 bytes (324.5 KiB)
-```
-
-The browser requests neither this asset nor the 4,196-byte preview adapter
-until a user clicks Preview. With the generated Apache configuration, opening a
-preview therefore adds 336,500 transferred bytes beyond the normal application
-load. Subsequent previews reuse the immutable cached renderer.
-
-The Viritura score viewer used for MNX previews is also optional. It is
-published as one content-hashed directory, because its modules find `wasm/`,
-`fonts/`, and their layout worker relative to themselves. For
-`score-engine-v0.1.0`:
-
-```text
-viritura.30b72ca1fc22/:  6,255,824 bytes (5.97 MiB)
-  gzipped:               2,791,188 bytes (2.66 MiB)
-```
-
-Most of that is the 4.4 MB layout engine (1.5 MB gzipped) and the Bravura and
-Libertinus Serif fonts (1.6 MB, 1.2 MB gzipped). Nothing in it is requested
-until a user previews an MNX document.
+preview panel. The Viritura score viewer is published as one content-hashed
+directory, because its modules find `wasm/`, `fonts/`, and their layout worker
+relative to themselves.
 
 ## Updating the Viritura score viewer
 
@@ -361,7 +319,6 @@ until a user previews an MNX document.
    the new release.
 4. Run `npm test`, then preview MNX output from a MUSX with linked parts:
    switch between the score and the parts, resize the window, and print.
-5. Record the new viewer size in this README.
 
 ## Updating Denigma
 
@@ -373,8 +330,7 @@ until a user previews an MNX document.
    clean build directory is not required.
 4. Run `npm test` and test all three formats with a MUSX containing linked
    parts, warnings, and playback tempo changes.
-5. Record the new WASM byte size in this README.
-6. Deploy the complete new `dist/` directory. Old hashed assets may be removed
+5. Deploy the complete new `dist/` directory. Old hashed assets may be removed
    after the old HTML cache has expired.
 
 The module's C ABI (`src/wasm/denigma_wasm.cpp` and the exported function list

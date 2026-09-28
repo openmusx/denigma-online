@@ -98,16 +98,16 @@ function exerciseEnigmaXmlInput(bytes, name, label) {
     new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
     try {
       assertResult(
-        Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 1, 0),
+        Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 1, 0, 0),
         `${label} to MusicXML`, '<score-partwise', 1, false, [0]);
     } finally {
       Module._denigma_free(selectionPointer);
     }
     assertResult(
-      Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0),
+      Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0),
       `${label} to MNX`, '"mnx"');
     assertResult(
-      Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0),
+      Module._denigma_convert(dataPointer, bytes.byteLength, namePointer, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0),
       `${label} pass-through`, '<finale');
   });
 }
@@ -158,27 +158,28 @@ try {
   new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
   try {
     assertResult(
-      Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 0, 1, 0, 0, 2, 0, selectionPointer, 1, 0),
+      Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 0, 1, 0, 0, 2, 0, selectionPointer, 1, 0, 0),
       'MusicXML with all source fonts available', '<score-partwise', 1, false, [0]);
     if (firstPartOutputIndex !== undefined) {
       new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, firstPartOutputIndex, true);
       assertResult(
-        Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 1, 0, 0, 0, 2, 0, selectionPointer, 1, 0),
+        Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 1, 0, 0, 0, 2, 0, selectionPointer, 1, 0, 0),
         'MusicXML linked part', '<score-partwise', 1, false, [firstPartOutputIndex]);
       new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
       new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer + 4, firstPartOutputIndex, true);
       assertResult(
-        Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 2, 0),
+        Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 2, 0, 0),
         'MusicXML score and linked part', '<score-partwise', 2, false, [0, firstPartOutputIndex]);
     }
   } finally {
     Module._denigma_free(selectionPointer);
   }
+  // MNX validation emits the verbose diagnostics this checks for.
   assertResult(
-    Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0),
+    Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1),
     'MNX with verbose logging', '"mnx"', 1, true);
   const enigmaXml = assertResult(
-    Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0),
+    Module._denigma_convert(inputPointer, input.byteLength, sourcePointer, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0),
     'EnigmaXML', '<finale');
 
   exerciseEnigmaXmlInput(enigmaXml, 'sample.enigmaxml', 'EnigmaXML input');
@@ -216,12 +217,12 @@ withAllocatedInput(deepStackInput, deepStackName, (dataPointer, namePointer) => 
   new DataView(Module.HEAPU8.buffer).setInt32(selectionPointer, 0, true);
   try {
     assertResult(
-      Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 1, 0),
+      Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 0, 0, 0, 0, 0, 2, 0, selectionPointer, 1, 0, 0),
       `${deepStackName} to MusicXML`, '<score-partwise', 1, false, [0]);
   } finally {
     Module._denigma_free(selectionPointer);
   }
   assertResult(
-    Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0),
+    Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0),
     `${deepStackName} to MNX after MusicXML`, '"mnx"');
 });

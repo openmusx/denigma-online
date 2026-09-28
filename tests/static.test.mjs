@@ -236,14 +236,18 @@ test('worker owns WASM conversion so the UI thread stays responsive', async () =
   assert.match(worker, /postMessage\(\{ type: 'converted'/);
 });
 
-test('the worker runs every request through the module host', async () => {
+test('the page runs the worker through the worker host', async () => {
   const worker = await readFile(new URL('../src/web/worker.js', import.meta.url), 'utf8');
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
-  assert.match(worker, /import \{ createModuleHost \} from '__MODULE_HOST_URL__';/);
-  assert.match(worker, /succeeded: \(result\) => result\.value\.success/);
-  assert.equal(worker.match(/await host\.run\(\(instance\) => \{\n        Module = instance;/g)?.length, 2);
-  assert.match(build, /\.replace\('__MODULE_HOST_URL__', moduleHostUrl/);
+  assert.match(app, /import \{ createWorkerHost \} from '__WORKER_HOST_URL__';/);
+  assert.match(app, /workerHost\.start\(\);/);
+  assert.equal(app.match(/workerHost\.send\(/g)?.length, 2);
+  assert.doesNotMatch(app, /worker\.postMessage/);
+  assert.match(worker, /if \(data\.type === 'init'\)/);
+  assert.match(worker, /instantiateWasm\(imports, receiveInstance\)/);
+  assert.match(worker, /options\.validate \? 1 : 0/);
+  assert.match(build, /\.replace\('__WORKER_HOST_URL__', workerHostUrl/);
   assert.match(app, /handleFailure\(`Conversion failed: \$\{describeFailure\(data\.message\)\}`\)/);
   assert.match(app, /message: describeFailure\(item\.message\)/);
 });

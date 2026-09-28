@@ -111,6 +111,14 @@
         </div>
         <label class="check-row"><input id="mnxSplit" type="checkbox"> <span>Split instruments into separate MNX parts</span></label>
         <label class="check-row"><input id="mnxPretty" type="checkbox" checked> <span>Pretty-print JSON</span></label>
+        <div class="check-row">
+          <input id="mnxValidate" type="checkbox" aria-describedby="mnxValidateHint">
+          <label for="mnxValidate">Validate MNX output</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Validate MNX output”">?</button>
+            <span id="mnxValidateHint" role="tooltip" class="hint-bubble">Checks the exported MNX against the MNX schema and semantic rules and lists any problems in the diagnostics. Conversion takes noticeably longer.</span>
+          </span>
+        </div>
         <div class="label-row">
           <label for="mnxCueLayer" class="label">Cue layer to omit</label>
           <span class="hint">

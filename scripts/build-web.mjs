@@ -93,13 +93,12 @@ previewSource = previewSource
   .replace('__VIRITURA_VIEWER_URL__', virituraViewerUrl.replace('./assets/', './'));
 const previewUrl = await emit('preview', 'js', previewSource);
 
-const moduleHostSource = await readFile(join(source, 'module-host.js'));
-const moduleHostUrl = await emit('module-host', 'js', moduleHostSource);
+const workerHostSource = await readFile(join(source, 'worker-host.js'));
+const workerHostUrl = await emit('worker-host', 'js', workerHostSource);
 
 let workerSource = await readFile(join(source, 'worker.js'), 'utf8');
 workerSource = workerSource
   .replace('__DENIGMA_MODULE_URL__', moduleUrl.replace('./assets/', './'))
-  .replace('__MODULE_HOST_URL__', moduleHostUrl.replace('./assets/', './'))
   .replace('__DENIGMA_WASM_URL__', wasmUrl.replace('./assets/', './'))
   .replace('__DENIGMA_ONLINE_COMMIT__', denigmaOnlineCommit)
   .replace('__BUILD_VERSION__', buildVersion);
@@ -116,7 +115,8 @@ appSource = appSource
   .replace('__CORE_MODULE_URL__', coreUrl.replace('./assets/', './'))
   .replace('__ZIP_MODULE_URL__', zipUrl.replace('./assets/', './'))
   .replace('__PREVIEW_MODULE_URL__', previewUrl.replace('./assets/', './'))
-  .replace('__WORKER_MODULE_URL__', workerUrl.replace('./assets/', './'));
+  .replace('__WORKER_MODULE_URL__', workerUrl.replace('./assets/', './'))
+  .replace('__WORKER_HOST_URL__', workerHostUrl.replace('./assets/', './'));
 const appUrl = await emit('app', 'js', appSource);
 
 const stylesSource = await readFile(join(source, 'styles.css'));
@@ -140,7 +140,7 @@ await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   wasm: wasmUrl,
   module: moduleUrl,
   worker: workerUrl,
-  moduleHost: moduleHostUrl,
+  workerHost: workerHostUrl,
   core: coreUrl,
   zip: zipUrl,
   preview: previewUrl,
