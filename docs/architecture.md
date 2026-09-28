@@ -101,6 +101,26 @@ dependencies, which keeps exception handling consistent across the wrapper and
 everything it links so conversion failures reach the wrapper's diagnostic
 handling instead of aborting the WebAssembly runtime.
 
+## Module lifetime
+
+WebAssembly memory grows but never shrinks, so an instance keeps the peak heap of
+the largest file it has converted. Loading a large score peaks well above the
+document it produces, because the XML parser's tree exists alongside it. A
+discarded instance's memory returns only when it is garbage collected, but
+terminating a worker releases its whole heap at once.
+
+Each worker therefore holds one instance for its whole life, and the page's
+worker host (`src/web/worker-host.js`) terminates it and starts a fresh worker
+for each new file and after any failed request, since an abort leaves the
+instance unusable. A worker started after a failure receives the selected file
+with its first request. The first worker compiles the WASM and returns the
+compiled module to the page, which passes it to every later worker, so a fresh
+worker only instantiates it.
+
+MNX schema and semantic validation is a large share of MNX conversion time, so
+it runs only when the MNX option "Validate MNX output" is checked. Its findings
+then appear among the conversion's diagnostics.
+
 The worker retains one selected input today. Its request/response messages and
 per-result diagnostics already provide the seam for a future coordinator that
 holds multiple files and schedules one conversion per file. No batch UI or
@@ -109,13 +129,13 @@ directory access is included in v1.
 ## Static production build
 
 `scripts/build-web.mjs` hashes every immutable asset and substitutes only local,
-relative module URLs. `index.html` is intentionally unhashed. The worker passes
-the hashed WASM URL to Emscripten's `locateFile`, so the generated module never
-depends on an unhashed WASM alias.
+relative module URLs. `index.html` is intentionally unhashed. The worker fetches
+and compiles the hashed WASM URL itself and hands each instance to Emscripten
+through `instantiateWasm`, so the generated module never depends on an unhashed
+WASM alias.
 
-The application makes no fetch/XHR calls. Emscripten fetches its same-origin
-WASM asset as part of module initialization; every other network request is a
-normal static module or stylesheet request.
+The worker's one fetch is that same-origin WASM asset; every other network
+request is a normal static module or stylesheet request.
 
 ## MNX preview
 

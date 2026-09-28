@@ -13,7 +13,7 @@ endif()
 # effect. A cached DENIGMA_GIT_TAG would shadow the new value in an existing
 # build tree, which is why overrides use separate cache entries instead.
 set(DENIGMA_GIT_REPOSITORY_PIN "https://github.com/openmusx/denigma.git")
-set(DENIGMA_GIT_TAG_PIN "ea5cc0fd9dea2854b9580e9f8e60edeaf5613567")
+set(DENIGMA_GIT_TAG_PIN "4eb6d168ee1cb52791607ed1c4bb1a454959444d")
 
 set(DENIGMA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
     "Override the pinned Denigma repository")
@@ -174,7 +174,7 @@ if(NOT _denigma_wasm_prebuilt)
     # configure.
     set(_denigma_cmake_args
         "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
-        -DCMAKE_BUILD_TYPE=MinSizeRel
+        -DCMAKE_BUILD_TYPE=Release
         -DDENIGMA_CXX_STANDARD=20
     )
     if(CMAKE_CROSSCOMPILING_EMULATOR)

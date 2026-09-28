@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import createDenigmaModule from '__DENIGMA_MODULE_URL__';
-import { createModuleHost } from '__MODULE_HOST_URL__';
 
 const wasmUrl = new URL('__DENIGMA_WASM_URL__', import.meta.url).href;
-// The instance the current request runs on; the helpers below all use it.
+// The worker's one instance; the helpers below all use it. The page terminates the
+// worker for a new file or after a failed request, which releases its memory.
 let Module;
 let selectedBytes;
 let selectedName = '';
@@ -146,7 +146,8 @@ function convert(options) {
         options.cueLayer,
         selectionPointer,
         selections.length,
-        0 // writeGapReport: the site never reads the MNX gap report
+        0, // writeGapReport: the site never reads the MNX gap report
+        options.validate ? 1 : 0
       );
       if (!resultPointer) throw new Error('Denigma did not return a conversion result.');
       try {
@@ -164,57 +165,68 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-// The selected file stays in the worker, so a replacement instance reads it again
-// on its first request.
-const host = createModuleHost({
-  create: () => createDenigmaModule({
-    locateFile(path) {
-      return path.endsWith('.wasm') ? wasmUrl : path;
-    },
-    print() {},
-    printErr(message) {
-      postMessage({ type: 'runtime-message', message: String(message) });
-    }
-  }),
-  succeeded: (result) => result.value.success,
-  onLoadError: (error) => postMessage({ type: 'load-error', message: errorMessage(error) })
-});
+async function compileWasm() {
+  const response = await fetch(wasmUrl);
+  if (!response.ok) throw new Error(`Unable to download ${wasmUrl} (HTTP ${response.status}).`);
+  return WebAssembly.compile(await response.arrayBuffer());
+}
 
-async function initialize() {
-  Module = await host.load();
+function instantiate(wasmModule) {
+  return new Promise((resolve, reject) => {
+    createDenigmaModule({
+      instantiateWasm(imports, receiveInstance) {
+        WebAssembly.instantiate(wasmModule, imports)
+          .then((instance) => receiveInstance(instance, wasmModule), reject);
+        return {};
+      },
+      print() {},
+      printErr(message) {
+        postMessage({ type: 'runtime-message', message: String(message) });
+      }
+    }).then(resolve, reject);
+  });
+}
+
+// The page passes the compiled module to every worker after the first, which
+// compiles it and returns it with 'ready'.
+async function initialize(providedModule) {
+  const wasmModule = providedModule ?? await compileWasm();
+  Module = await instantiate(wasmModule);
   postMessage({
     type: 'ready',
     denigmaVersion: stringAt(Module._denigma_version()),
     denigmaCommit: stringAt(Module._denigma_commit()),
     denigmaOnlineCommit: '__DENIGMA_ONLINE_COMMIT__',
-    buildVersion: '__BUILD_VERSION__'
+    buildVersion: '__BUILD_VERSION__',
+    wasmModule: providedModule ? undefined : wasmModule
   });
 }
 
+let loading;
+
 self.addEventListener('message', async ({ data }) => {
+  if (data.type === 'init') {
+    loading = initialize(data.wasmModule);
+    loading.catch((error) => postMessage({ type: 'load-error', message: errorMessage(error) }));
+    return;
+  }
   try {
-    if (data.type === 'inspect') {
+    await loading;
+    // Any request can select the file, so a fresh worker can convert without a
+    // separate inspection.
+    if (data.buffer) {
       selectedBytes = new Uint8Array(data.buffer);
       selectedName = data.fileName;
-      const result = await host.run((instance) => {
-        Module = instance;
-        return inspect();
-      });
-      postMessage({ type: 'inspected', requestId: data.requestId, ...result.value });
+    }
+    if (data.type === 'inspect') {
+      postMessage({ type: 'inspected', requestId: data.requestId, ...inspect().value });
       return;
     }
     if (data.type === 'convert') {
-      const result = await host.run((instance) => {
-        Module = instance;
-        return convert(data.options);
-      });
+      const result = convert(data.options);
       postMessage({ type: 'converted', requestId: data.requestId, ...result.value }, result.transfers);
     }
   } catch (error) {
     postMessage({ type: 'worker-error', requestId: data.requestId, message: errorMessage(error) });
   }
-});
-
-initialize().catch((error) => {
-  postMessage({ type: 'load-error', message: errorMessage(error) });
 });
