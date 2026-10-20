@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createZipBlob } from '../src/web/zip.js';
+import { finalizeResources } from '../src/web/mus-resources.js';
 
 const [, , moduleArg, wasmArg, musxArg] = process.argv;
 if (!moduleArg || !wasmArg || !musxArg) {
@@ -226,3 +227,55 @@ withAllocatedInput(deepStackInput, deepStackName, (dataPointer, namePointer) => 
     Module._denigma_convert(dataPointer, deepStackInput.byteLength, namePointer, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0),
     `${deepStackName} to MNX after MusicXML`, '"mnx"');
 });
+
+const legacyResources = finalizeResources(Module, [
+  { kind: 0, name: 'MacSymbolFonts.txt', bytes: new TextEncoder().encode('Maestro\nPetaluma\n') },
+  { kind: 1, name: 'Example.xml', bytes: new TextEncoder().encode('<Finale/>') },
+  { kind: 2, name: 'conversion.txt', bytes: new TextEncoder().encode('// empty table\n') },
+  { kind: 3, name: 'Example.soundmap', bytes: new TextEncoder().encode('<Soundmap/>') },
+  { kind: 4, name: 'catalog.xml', bytes: new TextEncoder().encode('<InstrumentCatalog/>') }
+]);
+try {
+  for (const fixture of ['F100-note.mus', 'F2008-parts-voiced.mus']) {
+    const bytes = await readFile(resolve(import.meta.dirname, 'data', fixture));
+    for (const name of ['score', 'misleading.musx', fixture]) {
+      withAllocatedInput(bytes, name, (dataPointer, namePointer) => {
+        if (Module._denigma_recognize_mus(dataPointer, bytes.length) !== 1) throw new Error('Legacy recognition failed');
+        const inspection = Module._denigma_inspect_with_resources(dataPointer, bytes.length, namePointer, legacyResources);
+        try {
+          if (!Module._denigma_result_success(inspection)) throw new Error(messages(inspection));
+          if (fixture.includes('parts') && !Module._denigma_result_part_count(inspection)) throw new Error('Legacy parts missing');
+        } finally { Module._denigma_result_destroy(inspection); }
+        const selection = Module._denigma_malloc(4);
+        new DataView(Module.HEAPU8.buffer).setInt32(selection, 0, true);
+        try {
+          for (const [format, marker] of [[0, '<score-partwise'], [1, '"mnx"']]) {
+            assertResult(Module._denigma_convert_with_resources(dataPointer, bytes.length, namePointer,
+              format, 0, 0, 0, 0, 2, 0, selection, 1, 0, 0, legacyResources), `${fixture} as ${name}, format ${format}`, marker);
+          }
+          const enigma = Module._denigma_convert_with_resources(dataPointer, bytes.length, namePointer,
+            2, 0, 0, 0, 0, 2, 0, selection, 1, 0, 0, legacyResources);
+          try {
+            if (Module._denigma_result_success(enigma) || !messages(enigma)) throw new Error('Legacy EnigmaXML must fail with a diagnostic');
+          } finally { Module._denigma_result_destroy(enigma); }
+        } finally { Module._denigma_free(selection); }
+      });
+    }
+  }
+  const damaged = (await readFile(resolve(import.meta.dirname, 'data/F300-baseline.mus'))).subarray(0, 1024);
+  withAllocatedInput(damaged, 'damaged', (pointer) => {
+    if (Module._denigma_recognize_mus(pointer, damaged.length) !== 3) throw new Error('Damaged MUS recognition failed');
+  });
+  withAllocatedInput(new TextEncoder().encode('unrelated'), 'unrelated', (pointer) => {
+    if (Module._denigma_recognize_mus(pointer, 9) !== 0) throw new Error('Unrelated input recognition failed');
+  });
+} finally { Module._denigma_mus_resources_destroy(legacyResources); }
+try {
+  const bad = new TextEncoder().encode('<Other/>');
+  finalizeResources(Module, [{ kind: 3, name: 'bad.soundmap', bytes: bad }]);
+  throw new Error('Invalid soundmap unexpectedly accepted');
+} catch (error) {
+  if (!error.message.includes('Soundmap')) throw error;
+}
+
+await import('./worker-wasm-smoke.mjs');

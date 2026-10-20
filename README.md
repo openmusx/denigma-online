@@ -1,17 +1,17 @@
 # Denigma Online
 
-A small static website that converts Finale `.musx` files to MusicXML, MNX, or
+A small static website that converts Finale MUSX and legacy MUS files to MusicXML, MNX, or
 EnigmaXML with Denigma WebAssembly. Conversion runs in a Web Worker and all
 document data stays in the browser.
 
 ## What it does
 
-- Reads one local MUSX file.
+- Reads one local MUSX, legacy MUS, or EnigmaXML file. Legacy MUS is recognized by content, even without an extension.
 - Discovers the score and linked parts from that file.
 - Exports any selection of score and linked parts as MusicXML.
 - Exports MNX with Denigma's playback-tempo, instrument-splitting, cue-layer,
   and JSON-formatting options.
-- Extracts EnigmaXML without presenting nonexistent options.
+- Extracts EnigmaXML from MUSX; this output is unavailable for legacy MUS.
 - Preserves Denigma diagnostics and builds a copyable GitHub issue report.
 - Saves through the File System Access API where supported and falls back to a
   standard browser download.
@@ -30,8 +30,8 @@ document data stays in the browser.
   page size, spatium, and all four first-page margins of the matching score or
   linked part, and printing exports every page as SVG.
 
-There is no backend, service worker, analytics, telemetry, CDN, remote font, or
-third-party runtime service. OSMD and the Viritura score viewer (with its
+There is no backend, service worker, analytics, telemetry, CDN, or remote font.
+Legacy MUS support data is downloaded from a separately configured HTTPS host. OSMD and the Viritura score viewer (with its
 Bravura and Libertinus Serif fonts) are bundled locally and are not downloaded
 unless a user opens a preview.
 
@@ -170,6 +170,85 @@ distribution instead, for example one built with `pnpm build:score-engine-dist`
 in a Viritura checkout (`npm run configure:local-viritura` for
 `../../Viritura/dist/score-engine`).
 
+## Legacy MUS support resources
+
+The resource inventory and checksums are pinned in `config/mus-resources.json`.
+Proprietary bytes are never bundled into `dist/`, the repository, or Actions
+artifacts. The default inventory contains Finale 27's symbol font list, four
+percussion-map XML files, the percussion conversion table, three soundmaps,
+and an XML instrument catalog exported from the legacy converter's database.
+These files improve playback, percussion, and text import; missing third-party
+instrument libraries may still limit fidelity.
+
+Prepare the set from an installed macOS Finale 27 after configuring the updated
+WASM module. Choose a new, empty directory **outside the repository**:
+
+```sh
+python3 scripts/prepare-mus-resources.py \
+  --application /Applications/Finale.app \
+  --shared "/Library/Application Support/MakeMusic/Finale 27" \
+  --output /tmp/denigma-finale-resources \
+  --version finale27-v1 \
+  --module build-wasm/wasm/denigma.js \
+  --wasm build-wasm/wasm/denigma.wasm
+```
+
+The tool validates all ten resources through WASM before reporting success.
+It exports the legacy converter's instrument SQLite database to the portable XML
+catalog expected by the reader; no SQLite runtime is needed in the browser.
+Only the generated `manifest.json` belongs in `config/mus-resources.json`.
+The generated resources and notice remain outside the repository. ZIP the output
+directory contents so `finale27-v1/` is at the archive root. Preserve existing
+versioned archives when adding a resource set.
+
+The default resource base URL is
+`https://robertgpatterson.com/-fininfo/-downloads/`. The site downloads
+`denigma-online-finale27-support-v1.zip` from that directory and extracts the
+required files in the conversion worker. Leave the uploaded archive compressed.
+Configure the ZIP response with:
+
+```text
+Access-Control-Allow-Origin: *
+Cache-Control: public, max-age=31536000, immutable
+```
+
+Serve the archive as `application/zip` and allow anonymous GET requests. The downloaded files contain support data only;
+score bytes, custom font lists, and output are never sent to this server.
+The generated `NOTICE.txt` records that the resource data is outside the MIT
+license; it does not establish redistribution permission.
+
+To override the default base directory URL when building:
+
+```sh
+DENIGMA_MUS_RESOURCE_BASE_URL=https://resources.example.org/denigma/ npm run build
+```
+
+For GitHub Pages, set the repository Actions variable
+`DENIGMA_MUS_RESOURCE_BASE_URL` to override the default directory, or
+`DENIGMA_MUS_RESOURCE_ARCHIVE_URL` to specify a complete ZIP URL. The build adds the resource origins
+to the HTML CSP, generated `.htaccess`, and generated `nginx.conf.example`.
+Use the generated server configuration when deploying elsewhere. Leaving the URL
+unset uses the default host; unavailable resources offer reader defaults.
+Publishing these files is a separate step; the build never uploads them.
+
+Resource fetching is **cache first**. Verified bytes persist in the site's
+Cache Storage, keyed by SHA-256, with no network revalidation on a cache hit.
+When every required file is cached, the archive is not requested at all.
+If any required file is missing or corrupt, one archive download supplies the
+missing entries. New resource-set versions reuse unchanged cached files. HTTP caching provides another layer when Cache Storage is
+unavailable. Browser storage can be cleared or evicted, and opening the site
+itself still requires its application assets; this is not full offline support.
+JSZip is bundled locally and loads only when extraction is needed; its license
+is included as `LICENSE-JSZip.txt`. No service worker is installed. Failed loads offer retry or explicit conversion
+with reader defaults, with a fidelity warning recorded in diagnostics.
+
+A custom MacSymbolFonts.txt completely replaces the hosted default. The browser
+remembers its bytes and name in a separate localStorage setting on this origin;
+**Restore default** removes it. Line endings are normalized and a UTF-8 BOM is
+removed without re-encoding font-name bytes. Binary, empty, and files larger than
+1 MiB are rejected. Storage failures leave a session-only override with a visible
+notice. Font-list contents are never included in issue reports or network requests.
+
 ## Visual Studio Code
 
 Repository-local recommendations are tracked in `.vscode_template/`. Create the
@@ -226,11 +305,13 @@ npm test
 npm run test:wasm
 ```
 
-The Node unit suite covers filenames, duplicate part names, diagnostic reports,
+The Node unit suite covers filenames, resource caching/integrity, font-list settings, duplicate part names, diagnostic reports,
 privacy/accessibility markup, and the worker boundary. Run
 `test:wasm` after `web_dist`; it inspects a checked-in linked-parts MUSX fixture,
 exports the score, one part, score plus part, MNX, and EnigmaXML, and verifies
-that invalid MUSX bytes fail with diagnostics.
+that invalid MUSX bytes fail with diagnostics. It also exercises legacy recognition,
+MusicXML/MNX export and linked parts, and the built browser worker using real
+WASM with synthetic support resources; CI needs no proprietary files.
 
 ## Deploy
 
@@ -270,11 +351,11 @@ header is preferable in production. The policy retains the narrow
 without support for the narrower token otherwise block WebAssembly startup.
 
 Do not enable request-body upload handlers for this location. The application
-only performs normal `GET` requests for its own static assets.
+only performs normal `GET` requests for static assets and the configured legacy resource host.
 
 ## Privacy
 
-The selected MUSX bytes are transferred from the page to a same-origin Web
+The selected Finale score bytes are transferred from the page to a same-origin Web
 Worker and copied into WebAssembly memory. Generated files return to the page as
 local `Blob` objects. Previewed MusicXML remains in the page and is passed
 directly to the locally bundled OSMD renderer; previewed MNX is passed to the
@@ -344,4 +425,5 @@ API mapping, output-selection mechanism, and future batch-processing seam.
 
 ## License
 
-MIT License. Copyright Robert G. Patterson. See [LICENSE](LICENSE).
+Application code: MIT License. Copyright Robert G. Patterson. See [LICENSE](LICENSE).
+Separately hosted Finale support data is not covered by this license.

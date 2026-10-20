@@ -1,0 +1,12 @@
+Controlled Finale fixtures authored by Robert G. Patterson, copied unchanged
+from openmusx/denigma commit 627fb968865e3a9678c0e525cb0269a83a210f83,
+tests/data/inputs/legacy-mus. Released under that repository's MIT license.
+
+F100-note.mus: Coda-banner framing, one-note score.
+SHA-256 305ee46cb1dec03c268d61def0424aca7c59d1af9d761f087edfacb5fd55bb6f
+
+F300-baseline.mus: uncompressed big-endian container; used for damaged-input tests.
+SHA-256 c04afa1fa3fc07e5c048e8bf7d68aed995741b91a09ca06978950c869033e0e8
+
+F2008-parts-voiced.mus: zlib little-endian container with voiced linked parts.
+SHA-256 8fc23ec298ea38e742afc21c7eb7463c98fa44f4ffb862d251ec1530792a3df1

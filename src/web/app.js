@@ -15,6 +15,7 @@ import {
 } from '__CORE_MODULE_URL__';
 import { createZipBlob, supportsCompression } from '__ZIP_MODULE_URL__';
 import { createWorkerHost } from '__WORKER_HOST_URL__';
+import { normalizeSymbolFonts, readSymbolFonts, saveSymbolFonts } from '__MUS_RESOURCES_URL__';
 
 const ISSUE_URL = 'https://github.com/openmusx/denigma/issues';
 const SETTINGS_STORAGE_KEY = 'denigma-online.settings.v1';
@@ -25,6 +26,7 @@ const canZip = supportsCompression();
 const workerHost = createWorkerHost({
   spawn: () => new Worker(new URL('__WORKER_MODULE_URL__', import.meta.url), { type: 'module' }),
   onMessage: handleWorkerMessage,
+  readSettings: () => ({ fontOverride, allowDefaults }),
   readInput: async () => ({ fileName: inputFile.name, buffer: await inputFile.arrayBuffer() })
 });
 workerHost.start();
@@ -35,6 +37,12 @@ let pendingRequest = 0;
 let wasmReady = false;
 let busy = false;
 let inputFile;
+let fontOverride;
+let allowDefaults = false;
+let resourcesBlocked = false;
+let legacyInput = false;
+let resourceInfo = 'Not used';
+try { fontOverride = readSymbolFonts(localStorage); } catch {}
 let parts = [];
 let scorePageSize;
 let outputs = [];
@@ -76,7 +84,11 @@ function clearInputError() {
 function setBusy(value) {
   busy = value;
   elements.file.disabled = value || !wasmReady;
-  elements.convert.disabled = value || !wasmReady || !inputFile || !hasValidSelection();
+  elements.convert.disabled = value || !wasmReady || !inputFile || resourcesBlocked || !hasValidSelection();
+  elements.symbolFonts.disabled = value || !wasmReady;
+  elements.restoreSymbolFonts.disabled = value || !wasmReady || !fontOverride;
+  elements.retryResources.disabled = value;
+  elements.useDefaults.disabled = value;
   elements.format.disabled = value;
   elements.musicxmlOptions.disabled = value;
   elements.mnxOptions.disabled = value;
@@ -412,7 +424,12 @@ function renderOutputs(rawOutputs) {
   elements.saveAll.hidden = !canPickDirectory || outputs.length < 2;
 }
 
-async function loadFile(file) {
+async function loadFile(file, useReaderDefaults = false) {
+  allowDefaults = useReaderDefaults;
+  resourcesBlocked = false;
+  resourceInfo = 'Not used';
+  elements.resourceFailure.hidden = true;
+  setLegacyInput(false);
   elements.scoreName.textContent = 'Score';
   if (!isSupportedInputFile(file)) {
     clearOutputs();
@@ -421,9 +438,7 @@ async function loadFile(file) {
     scorePageSize = undefined;
     renderParts();
     elements.inputSummary.hidden = true;
-    const message = file?.name?.toLowerCase().endsWith('.zip')
-      ? 'That ZIP file is not an EnigmaXML archive. Its filename must end in .enigmaxml.zip.'
-      : 'Choose a supported Finale file.';
+    const message = 'Choose a Finale file.';
     showInputError(message);
     setStatus('');
     setBusy(false);
@@ -460,7 +475,7 @@ function handleWorkerMessage(data) {
     runtime = data;
     wasmReady = true;
     elements.version.textContent = `Denigma ${data.denigmaVersion} · commit ${shortCommit(data.denigmaCommit)}`;
-    setStatus('Ready. Choose a Finale MUSX file.');
+    setStatus('Ready. Choose a Finale file.');
     setBusy(false);
     return;
   }
@@ -470,6 +485,21 @@ function handleWorkerMessage(data) {
     return;
   }
   if (data.requestId && data.requestId !== pendingRequest) return;
+  if (data.type === 'input-kind') {
+    setLegacyInput(data.legacyInput);
+    if (data.legacyInput) setStatus('Loading legacy MUS support and reading the score…');
+    return;
+  }
+  if (data.type === 'resources-unavailable') {
+    resourcesBlocked = true;
+    resourceInfo = 'Support files unavailable';
+    elements.resourceError.textContent = `Unable to load legacy support files: ${data.message}`;
+    elements.resourceFailure.hidden = false;
+    setStatus('Legacy support files are unavailable. Retry or continue with reader defaults.', 'warning');
+    setBusy(false);
+    return;
+  }
+  if (data.resourceInfo) resourceInfo = data.resourceInfo;
   if (data.type === 'worker-error') {
     handleFailure(`Conversion failed: ${describeFailure(data.message)}`);
     return;
@@ -478,7 +508,7 @@ function handleWorkerMessage(data) {
     data.diagnostics = data.diagnostics.map((item) => ({ ...item, message: describeFailure(item.message) }));
   }
   if (data.type === 'inspected') {
-    diagnostics = data.diagnostics;
+    diagnostics = resourceDiagnostics(data.diagnostics);
     if (!data.success) {
       inputFile = undefined;
       elements.inputSummary.hidden = true;
@@ -497,7 +527,7 @@ function handleWorkerMessage(data) {
     return;
   }
   if (data.type === 'converted') {
-    diagnostics = data.diagnostics;
+    diagnostics = resourceDiagnostics(data.diagnostics);
     renderDiagnostics(diagnostics);
     elements.results.hidden = false;
     if (!data.success || data.outputs.length === 0) {
@@ -511,6 +541,63 @@ function handleWorkerMessage(data) {
     setStatus(`Conversion complete: ${data.outputs.length} file${data.outputs.length === 1 ? '' : 's'} generated${warningCount ? ` with ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}.`, warningCount ? 'warning' : 'success');
     setBusy(false);
   }
+}
+
+function setLegacyInput(value) {
+  legacyInput = value;
+  elements.format.querySelector('option[value="enigmaxml"]').disabled = value;
+  elements.legacyFormatHint.hidden = !value;
+  if (value && elements.format.value === 'enigmaxml') elements.format.value = 'musicxml';
+  showFormatOptions();
+}
+
+function resourceDiagnostics(items) {
+  return legacyInput && allowDefaults
+    ? [{ severity: 'warning', message: `Legacy conversion is using reader defaults; playback, percussion, and text fidelity may be reduced. ${resourceInfo}.` }, ...items]
+    : items;
+}
+
+function showSymbolFontsStatus(note = '') {
+  elements.symbolFontsStatus.textContent = `${fontOverride ? `Using custom symbol font list: ${fontOverride.name}.` : 'Using the hosted default symbol font list.'}${note ? ` ${note}` : ''}`;
+  setBusy(busy);
+}
+
+async function changeSymbolFonts(override) {
+  fontOverride = override;
+  let note = '';
+  try { saveSymbolFonts(localStorage, override); }
+  catch { note = 'This change could not be saved and applies only to this session.'; }
+  showSymbolFontsStatus(note);
+  if (inputFile && legacyInput) await loadFile(inputFile, allowDefaults);
+}
+
+showSymbolFontsStatus();
+elements.symbolFonts.addEventListener('change', async () => {
+  const file = elements.symbolFonts.files?.[0];
+  if (!file || busy) return;
+  let reinspecting = false;
+  setBusy(true);
+  try {
+    if (file.size > 1024 * 1024) throw new Error('The symbol font list must be smaller than 1 MiB.');
+    const bytes = normalizeSymbolFonts(await file.arrayBuffer());
+    reinspecting = Boolean(inputFile && legacyInput);
+    await changeSymbolFonts({ name: file.name, bytes });
+  } catch (error) {
+    reinspecting = false;
+    showSymbolFontsStatus(`Unable to use that file: ${error.message || error}`);
+    setBusy(false);
+  } finally {
+    elements.symbolFonts.value = '';
+    if (!reinspecting) setBusy(false);
+  }
+});
+elements.restoreSymbolFonts.addEventListener('click', () => {
+  changeSymbolFonts(undefined).catch((error) => handleFailure(error.message || String(error)));
+});
+for (const [button, defaults] of [[elements.retryResources, false], [elements.useDefaults, true]]) {
+  button.addEventListener('click', () => {
+    if (inputFile && !busy) loadFile(inputFile, defaults).catch((error) => handleFailure(error.message || String(error)));
+  });
 }
 
 elements.file.addEventListener('change', () => {
@@ -620,7 +707,7 @@ elements.copyReport.addEventListener('click', async () => {
   const report = diagnosticReport({
     ...runtime,
     format: FORMATS[snapshot.formatKey].label,
-    options: snapshot.reportOptions,
+    options: { ...snapshot.reportOptions, legacyResources: resourceInfo },
     diagnostics
   });
   try {

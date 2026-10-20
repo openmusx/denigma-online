@@ -16,9 +16,10 @@
 // The first worker compiles the WebAssembly module and returns it with its
 // 'ready' message. Every later worker receives it in its 'init' message, so a
 // fresh worker instantiates the module without downloading or compiling it.
-export function createWorkerHost({ spawn, onMessage, readInput }) {
+export function createWorkerHost({ spawn, onMessage, readInput, readSettings = () => ({}) }) {
   let worker;
   let wasmModule;
+  let resourceCache;
   let used = false;
   let failed = false;
   let announced = false;
@@ -31,6 +32,11 @@ export function createWorkerHost({ spawn, onMessage, readInput }) {
     failed = false;
     current.addEventListener('message', ({ data }) => {
       if (current !== worker) return;
+      if (data.type === 'resource-cache') {
+        resourceCache = data.resources;
+        return;
+      }
+      if (data.type === 'resources-unavailable') resourceCache = undefined;
       if (data.type === 'ready') {
         const { wasmModule: compiled, ...ready } = data;
         wasmModule ??= compiled;
@@ -41,7 +47,7 @@ export function createWorkerHost({ spawn, onMessage, readInput }) {
       if (data.type === 'load-error' || data.type === 'worker-error' || data.success === false) failed = true;
       onMessage(data);
     });
-    current.postMessage({ type: 'init', wasmModule });
+    current.postMessage({ type: 'init', wasmModule, ...(resourceCache ? { resourceCache } : {}) });
   }
 
   return {
@@ -57,6 +63,7 @@ export function createWorkerHost({ spawn, onMessage, readInput }) {
         start();
         input ??= await readInput();
       }
+      message = { ...message, ...readSettings() };
       used = true;
       if (input) {
         worker.postMessage({ ...message, fileName: input.fileName, buffer: input.buffer }, [input.buffer]);

@@ -12,3 +12,6 @@
 # the tracked .vscode_template directory when setting up a checkout.
 /.vscode/
 /CMakeUserPresets.json
+
+# Proprietary support data must be prepared outside this repository.
+/mus-resources/

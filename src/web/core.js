@@ -8,11 +8,11 @@ export const FORMATS = Object.freeze({
 });
 
 export function isSupportedInputFile(file) {
-  return Boolean(file?.name && /\.(?:musx|enigmaxml(?:\.zip)?)$/i.test(file.name));
+  return Boolean(file?.name);
 }
 
 export function baseName(fileName) {
-  return fileName.replace(/\.(?:musx|enigmaxml(?:\.zip)?)$/i, '') || 'converted';
+  return fileName.replace(/\.(?:musx|mus|enigmaxml(?:\.zip)?)$/i, '') || 'converted';
 }
 
 export function safeNamePart(value) {

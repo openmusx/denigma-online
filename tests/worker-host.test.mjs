@@ -122,3 +122,27 @@ test('only the first worker announces that the page is ready', async () => {
   workers[1].emit({ type: 'ready' });
   assert.deepEqual(delivered.map(({ type }) => type), ['ready']);
 });
+
+test('verified resource bytes survive worker replacement and settings are read for every request', async () => {
+  const { host, workers, delivered } = fakeHost();
+  const resources = [{ kind: 0, name: 'MacSymbolFonts.txt', bytes: new Uint8Array([65]) }];
+  workers[0].emit({ type: 'resource-cache', resources });
+  assert.deepEqual(delivered, []);
+  await host.send({ type: 'inspect', requestId: 1 }, input());
+  await host.send({ type: 'inspect', requestId: 2 }, input());
+  assert.deepEqual(workers[1].posted[0].data.resourceCache, resources);
+  workers[1].emit({ type: 'resources-unavailable', requestId: 2 });
+  await host.send({ type: 'inspect', requestId: 3 }, input());
+  assert.equal(workers[2].posted[0].data.resourceCache, undefined);
+
+  let settings = { allowDefaults: false };
+  const worker = new FakeWorker(1);
+  const configured = createWorkerHost({ spawn: () => worker, onMessage() {}, readSettings: () => settings });
+  configured.start();
+  await configured.send({ type: 'inspect' }, input());
+  settings = { allowDefaults: true, fontOverride: { name: 'custom', bytes: new Uint8Array([66]) } };
+  await configured.send({ type: 'convert' });
+  assert.equal(worker.posted[1].data.allowDefaults, false);
+  assert.deepEqual(worker.posted[2].data.fontOverride, settings.fontOverride);
+  assert.equal(worker.posted[2].data.allowDefaults, true);
+});

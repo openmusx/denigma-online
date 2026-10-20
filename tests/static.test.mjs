@@ -19,7 +19,7 @@ test('HTML has privacy, status, accessible labels, and issue links', async () =>
   assert.match(html, /MIT License and warranty disclaimer/);
   assert.match(html, /role="status" aria-live="polite"/);
   assert.match(html, /<label for="file"/);
-  assert.match(html, /accept="[^"]*\.enigmaxml[^"]*\.zip/);
+  assert.doesNotMatch(html, /id="file"[^>]*accept=/);
   assert.match(html, /id="inputError"[^>]*role="alert"[^>]*hidden/);
   assert.match(html, /MusicXML \(uncompressed\)/);
   assert.match(html, /MNX \(experimental\)/);
@@ -105,10 +105,10 @@ test('every option hint is described once and reachable by assistive technology'
   assert.ok(!/\.hint-bubble \{[^}]*(display: none|visibility: hidden)/s.test(css));
 });
 
-test('invalid ZIP input is rejected beside the picker and clears its selection', async () => {
+test('unreadable input is rejected beside the picker and clears its selection', async () => {
   const app = await readFile(new URL('../src/web/app.js', import.meta.url), 'utf8');
   const rejection = app.slice(app.indexOf('if (!isSupportedInputFile(file))'), app.indexOf('clearInputError();'));
-  assert.match(app, /filename must end in \.enigmaxml\.zip/);
+  assert.doesNotMatch(app, /filename must end in/);
   assert.match(app, /function showInputError\(message\)/);
   assert.match(app, /elements\.file\.value = ''/);
   assert.match(app, /elements\.inputError\.hidden = false/);
@@ -256,7 +256,7 @@ test('production builds include Apache caching and compressed WASM rules', async
   const build = await readFile(new URL('../scripts/build-web.mjs', import.meta.url), 'utf8');
   const apache = await readFile(new URL('../deploy/apache.htaccess', import.meta.url), 'utf8');
 
-  assert.match(build, /apache\.htaccess.*\.htaccess/);
+  assert.match(build, /resourceCsp\(await readFile\(join\(root, 'deploy', 'apache\.htaccess'/);
   assert.match(apache, /max-age=31536000, immutable/);
   assert.match(apache, /Content-Encoding "gzip"/);
   assert.match(apache, /Content-Type "application\/wasm"/);

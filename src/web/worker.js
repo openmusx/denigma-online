@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import createDenigmaModule from '__DENIGMA_MODULE_URL__';
+import { downloadResources, finalizeResources } from '__MUS_RESOURCES_URL__';
+import resourceConfig from '__MUS_CONFIG_URL__';
+import { openResourceArchive } from '__RESOURCE_ARCHIVE_URL__';
 
 const wasmUrl = new URL('__DENIGMA_WASM_URL__', import.meta.url).href;
 // The worker's one instance; the helpers below all use it. The page terminates the
@@ -9,6 +12,10 @@ const wasmUrl = new URL('__DENIGMA_WASM_URL__', import.meta.url).href;
 let Module;
 let selectedBytes;
 let selectedName = '';
+let resourceCache;
+let resourceHandle = 0;
+let legacyInput = false;
+let resourceInfo = 'Not used';
 
 const severityNames = ['info', 'warning', 'error', 'verbose'];
 
@@ -118,7 +125,7 @@ function withInput(callback) {
 
 function inspect() {
   return withInput((inputPointer, namePointer) => {
-    const resultPointer = Module._denigma_inspect(inputPointer, selectedBytes.byteLength, namePointer);
+    const resultPointer = Module._denigma_inspect_with_resources(inputPointer, selectedBytes.byteLength, namePointer, resourceHandle);
     if (!resultPointer) throw new Error('Denigma did not return an inspection result.');
     try {
       return readResult(resultPointer, false);
@@ -133,7 +140,7 @@ function convert(options) {
     const selections = new Int32Array(options.selectedOutputs || []);
     const selectionPointer = selections.byteLength ? allocateBytes(new Uint8Array(selections.buffer)) : 0;
     try {
-      const resultPointer = Module._denigma_convert(
+      const resultPointer = Module._denigma_convert_with_resources(
         inputPointer,
         selectedBytes.byteLength,
         namePointer,
@@ -147,7 +154,8 @@ function convert(options) {
         selectionPointer,
         selections.length,
         0, // writeGapReport: the site never reads the MNX gap report
-        options.validate ? 1 : 0
+        options.validate ? 1 : 0,
+        resourceHandle
       );
       if (!resultPointer) throw new Error('Denigma did not return a conversion result.');
       try {
@@ -189,7 +197,8 @@ function instantiate(wasmModule) {
 
 // The page passes the compiled module to every worker after the first, which
 // compiles it and returns it with 'ready'.
-async function initialize(providedModule) {
+async function initialize(providedModule, cachedResources) {
+  resourceCache = cachedResources;
   const wasmModule = providedModule ?? await compileWasm();
   Module = await instantiate(wasmModule);
   postMessage({
@@ -206,7 +215,7 @@ let loading;
 
 self.addEventListener('message', async ({ data }) => {
   if (data.type === 'init') {
-    loading = initialize(data.wasmModule);
+    loading = initialize(data.wasmModule, data.resourceCache);
     loading.catch((error) => postMessage({ type: 'load-error', message: errorMessage(error) }));
     return;
   }
@@ -218,13 +227,35 @@ self.addEventListener('message', async ({ data }) => {
       selectedBytes = new Uint8Array(data.buffer);
       selectedName = data.fileName;
     }
+    if (data.type !== 'inspect' && data.type !== 'convert') return;
+    legacyInput = withInput((pointer) => Module._denigma_recognize_mus(pointer, selectedBytes.byteLength)) === 1;
+    postMessage({ type: 'input-kind', requestId: data.requestId, legacyInput });
+    if (!resourceHandle && legacyInput) {
+      try {
+        let entries = [];
+        if (!data.allowDefaults) {
+          resourceCache ??= await downloadResources(resourceConfig, fetch, globalThis.caches, openResourceArchive);
+          entries = resourceCache;
+        }
+        if (data.fontOverride) {
+          entries = entries.filter(({ kind }) => kind !== 0).concat({ kind: 0, name: 'MacSymbolFonts.txt', bytes: data.fontOverride.bytes });
+        }
+        resourceHandle = finalizeResources(Module, entries);
+        if (!data.allowDefaults) postMessage({ type: 'resource-cache', resources: resourceCache });
+        resourceInfo = `${data.allowDefaults ? 'Reader defaults' : resourceConfig.manifest.version}; symbol fonts: ${data.fontOverride ? 'custom' : data.allowDefaults ? 'reader defaults' : 'hosted default'}`;
+      } catch (error) {
+        resourceCache = undefined;
+        postMessage({ type: 'resources-unavailable', requestId: data.requestId, message: errorMessage(error) });
+        return;
+      }
+    }
     if (data.type === 'inspect') {
-      postMessage({ type: 'inspected', requestId: data.requestId, ...inspect().value });
+      postMessage({ type: 'inspected', requestId: data.requestId, ...inspect().value, legacyInput, resourceInfo: legacyInput ? resourceInfo : 'Not used' });
       return;
     }
     if (data.type === 'convert') {
       const result = convert(data.options);
-      postMessage({ type: 'converted', requestId: data.requestId, ...result.value }, result.transfers);
+      postMessage({ type: 'converted', requestId: data.requestId, ...result.value, resourceInfo: legacyInput ? resourceInfo : 'Not used' }, result.transfers);
     }
   } catch (error) {
     postMessage({ type: 'worker-error', requestId: data.requestId, message: errorMessage(error) });
