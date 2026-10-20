@@ -1,0 +1,95 @@
+{
+  "version": "finale27-v1",
+  "files": [
+    {
+      "kind": 0,
+      "name": "MacSymbolFonts.txt",
+      "path": "finale27-v1/MacSymbolFonts.txt",
+      "size": 1180,
+      "sha256": "6358e62034aa3af21d1d8494c3c159c7de21048c6a1257f259a8c6e7bb84b2eb",
+      "source": "Finale 27/Configuration Files/MacSymbolFonts.txt",
+      "sourceSha256": "6358e62034aa3af21d1d8494c3c159c7de21048c6a1257f259a8c6e7bb84b2eb"
+    },
+    {
+      "kind": 1,
+      "name": "General MIDI.xml",
+      "path": "finale27-v1/General MIDI.xml",
+      "size": 3119,
+      "sha256": "8d618f9ce0685f16f08329367cc13e936f159dab27eb260f43777866bd33149f",
+      "source": "Finale 27/MIDI Device Annotation/General MIDI.xml",
+      "sourceSha256": "8d618f9ce0685f16f08329367cc13e936f159dab27eb260f43777866bd33149f"
+    },
+    {
+      "kind": 1,
+      "name": "SmartMusic SoftSynth.xml",
+      "path": "finale27-v1/SmartMusic SoftSynth.xml",
+      "size": 11851,
+      "sha256": "81331dfe4ce5386870830d0a05f41e4d6928d9542075e92314e899ce63d7fd22",
+      "source": "Finale 27/MIDI Device Annotation/SmartMusic SoftSynth.xml",
+      "sourceSha256": "81331dfe4ce5386870830d0a05f41e4d6928d9542075e92314e899ce63d7fd22"
+    },
+    {
+      "kind": 1,
+      "name": "Garritan Instruments for Finale.xml",
+      "path": "finale27-v1/Garritan Instruments for Finale.xml",
+      "size": 49044,
+      "sha256": "f99cc8479b58e38829ee0f5aa871f9e629eb2ffadba457eb99cf8f987cfcb9d9",
+      "source": "Finale 27/MIDI Device Annotation/Garritan Instruments for Finale.xml",
+      "sourceSha256": "f99cc8479b58e38829ee0f5aa871f9e629eb2ffadba457eb99cf8f987cfcb9d9"
+    },
+    {
+      "kind": 1,
+      "name": "Tapspace Drumline for Finale.xml",
+      "path": "finale27-v1/Tapspace Drumline for Finale.xml",
+      "size": 9577,
+      "sha256": "94140ec06fbdfa429c88b44e4eb4612672ca6a01d8bc45b2ed324acfb7757913",
+      "source": "Finale 27/MIDI Device Annotation/Tapspace Drumline for Finale.xml",
+      "sourceSha256": "94140ec06fbdfa429c88b44e4eb4612672ca6a01d8bc45b2ed324acfb7757913"
+    },
+    {
+      "kind": 2,
+      "name": "PercMapConversionTable.txt",
+      "path": "finale27-v1/PercMapConversionTable.txt",
+      "size": 5909,
+      "sha256": "a3c16ab868e3ad0e5ed730de18b9d5a90fefa1855e2fc2567c79a2acdd4b5a6e",
+      "source": "Finale 27/Configuration Files/PercMapConversionTable.txt",
+      "sourceSha256": "a3c16ab868e3ad0e5ed730de18b9d5a90fefa1855e2fc2567c79a2acdd4b5a6e"
+    },
+    {
+      "kind": 3,
+      "name": "2012FileConverterGeneralMIDI.soundmap",
+      "path": "finale27-v1/2012FileConverterGeneralMIDI.soundmap",
+      "size": 156782,
+      "sha256": "4d4b1de3fd945bbbdd6ed0aa78ae1f31a488211309d4fcc77bfb5a864142bf1f",
+      "source": "Finale.app/Contents/PlugIns/2012FileConverter.bundle/Contents/Resources/2012FileConverterGeneralMIDI.soundmap",
+      "sourceSha256": "4d4b1de3fd945bbbdd6ed0aa78ae1f31a488211309d4fcc77bfb5a864142bf1f"
+    },
+    {
+      "kind": 3,
+      "name": "2012FileConverterSoftSynth.soundmap",
+      "path": "finale27-v1/2012FileConverterSoftSynth.soundmap",
+      "size": 80646,
+      "sha256": "f1b77e4512d722d6b7f86112dd2c1ead1f3f73af45f1e907ab6975473f9d3530",
+      "source": "Finale.app/Contents/PlugIns/2012FileConverter.bundle/Contents/Resources/2012FileConverterSoftSynth.soundmap",
+      "sourceSha256": "f1b77e4512d722d6b7f86112dd2c1ead1f3f73af45f1e907ab6975473f9d3530"
+    },
+    {
+      "kind": 3,
+      "name": "GIFF.soundmap",
+      "path": "finale27-v1/GIFF.soundmap",
+      "size": 196565,
+      "sha256": "4e591cd8c5bf11e0ae7bcd19d39ce90bebf9327cde58b98f4f1f6b4a8e6f2c1d",
+      "source": "Finale 27/Data/GIFF.soundmap",
+      "sourceSha256": "4e591cd8c5bf11e0ae7bcd19d39ce90bebf9327cde58b98f4f1f6b4a8e6f2c1d"
+    },
+    {
+      "kind": 4,
+      "name": "InstrumentCatalog.xml",
+      "path": "finale27-v1/InstrumentCatalog.xml",
+      "size": 119616,
+      "sha256": "5ed3736ef130ffffeb48b6831afa00a735256316dc766889b4550910ffb60ecf",
+      "source": "Finale.app/Contents/PlugIns/2012FileConverter.bundle/Contents/Resources/2012FileConverter.instruments",
+      "sourceSha256": "ae03b1e187e884d2fc95b89de6a71d53606e06e51b97651484cf1f1fa5d558cf"
+    }
+  ]
+}

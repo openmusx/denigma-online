@@ -16,17 +16,21 @@ import {
 } from '../src/web/core.js';
 import { versionAtLeast } from '../scripts/tooling.mjs';
 
-test('supported input validation is case-insensitive and exact', () => {
+test('all filenames reach WASM content recognition', () => {
   assert.equal(isSupportedInputFile({ name: 'Score.MUSX' }), true);
   assert.equal(isSupportedInputFile({ name: 'Score.ENIGMAXML' }), true);
   assert.equal(isSupportedInputFile({ name: 'Score.EnigmaXML.ZIP' }), true);
-  assert.equal(isSupportedInputFile({ name: 'Score.xml' }), false);
-  assert.equal(isSupportedInputFile({ name: 'Score.enigmaxml.zip.txt' }), false);
+  assert.equal(isSupportedInputFile({ name: 'Score.xml' }), true);
+  assert.equal(isSupportedInputFile({ name: 'Score.enigmaxml.zip.txt' }), true);
   assert.equal(isSupportedInputFile(undefined), false);
 });
 
 test('output names preserve Unicode and remove unsafe path characters', () => {
   assert.equal(baseName('Symphony.musx'), 'Symphony');
+  assert.equal(baseName('Symphony.MUS'), 'Symphony');
+  assert.equal(baseName('Symphony'), 'Symphony');
+  assert.equal(baseName('Symphony.unknown'), 'Symphony.unknown');
+  assert.equal(isSupportedInputFile({ name: 'Score' }), true);
   assert.equal(baseName('Symphony.enigmaxml'), 'Symphony');
   assert.equal(baseName('Symphony.enigmaxml.zip'), 'Symphony');
   assert.equal(safeNamePart('Clarinét / B♭'), 'Clarinét _ B♭');

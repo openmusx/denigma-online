@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { validateManifest } from '../src/web/mus-resources.js';
 
 const [, , moduleArg, wasmArg, virituraArg] = process.argv;
 if (!moduleArg || !wasmArg || !virituraArg) {
@@ -17,6 +18,28 @@ const root = resolve(import.meta.dirname, '..');
 const source = join(root, 'src', 'web');
 const dist = join(root, 'dist');
 const assets = join(dist, 'assets');
+const resourceManifest = validateManifest(JSON.parse(await readFile(join(root, 'config', 'mus-resources.json'), 'utf8')));
+let resourceBaseUrl = process.env.DENIGMA_MUS_RESOURCE_BASE_URL?.trim() || 'https://robertgpatterson.com/-fininfo/-downloads/';
+let resourceOrigin = '';
+if (resourceBaseUrl) {
+  const url = new URL(resourceBaseUrl);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+    throw new Error('DENIGMA_MUS_RESOURCE_BASE_URL must be an HTTPS directory URL without credentials, query, or fragment.');
+  }
+  if (!url.pathname.endsWith('/')) url.pathname += '/';
+  resourceBaseUrl = url.href;
+  resourceOrigin = url.origin;
+}
+const resourceArchiveUrl = new URL(process.env.DENIGMA_MUS_RESOURCE_ARCHIVE_URL?.trim()
+  || 'denigma-online-finale27-support-v1.zip', resourceBaseUrl).href;
+const archiveLocation = new URL(resourceArchiveUrl);
+if (archiveLocation.protocol !== 'https:' || archiveLocation.username || archiveLocation.password || archiveLocation.hash) {
+  throw new Error('DENIGMA_MUS_RESOURCE_ARCHIVE_URL must be an HTTPS URL without credentials or fragment.');
+}
+function resourceCsp(source) {
+  const origins = [...new Set([resourceOrigin, archiveLocation.origin].filter(Boolean))];
+  return source.replaceAll("connect-src 'self'", `connect-src 'self' ${origins.join(' ')}`);
+}
 
 function hash(contents) {
   return createHash('sha256').update(contents).digest('hex').slice(0, 12);
@@ -93,11 +116,21 @@ previewSource = previewSource
   .replace('__VIRITURA_VIEWER_URL__', virituraViewerUrl.replace('./assets/', './'));
 const previewUrl = await emit('preview', 'js', previewSource);
 
+const musResourcesUrl = await emit('mus-resources', 'js', await readFile(join(source, 'mus-resources.js')));
+const jszipUrl = await emit('jszip', 'js', await readFile(join(root, 'node_modules', 'jszip', 'dist', 'jszip.min.js')));
+const resourceArchiveSource = (await readFile(join(source, 'resource-archive.js'), 'utf8'))
+  .replace('__JSZIP_URL__', jszipUrl.replace('./assets/', './'));
+const resourceArchiveModuleUrl = await emit('resource-archive', 'js', resourceArchiveSource);
+const musConfigUrl = await emit('mus-config', 'js', `export default ${JSON.stringify({ baseUrl: resourceBaseUrl, archiveUrl: resourceArchiveUrl, manifest: resourceManifest })};\n`);
+
 const workerHostSource = await readFile(join(source, 'worker-host.js'));
 const workerHostUrl = await emit('worker-host', 'js', workerHostSource);
 
 let workerSource = await readFile(join(source, 'worker.js'), 'utf8');
 workerSource = workerSource
+  .replace('__MUS_RESOURCES_URL__', musResourcesUrl.replace('./assets/', './'))
+  .replace('__MUS_CONFIG_URL__', musConfigUrl.replace('./assets/', './'))
+  .replace('__RESOURCE_ARCHIVE_URL__', resourceArchiveModuleUrl.replace('./assets/', './'))
   .replace('__DENIGMA_MODULE_URL__', moduleUrl.replace('./assets/', './'))
   .replace('__DENIGMA_WASM_URL__', wasmUrl.replace('./assets/', './'))
   .replace('__DENIGMA_ONLINE_COMMIT__', denigmaOnlineCommit)
@@ -112,6 +145,7 @@ const zipUrl = await emit('zip', 'js', zipSource);
 
 let appSource = await readFile(join(source, 'app.js'), 'utf8');
 appSource = appSource
+  .replace('__MUS_RESOURCES_URL__', musResourcesUrl.replace('./assets/', './'))
   .replace('__CORE_MODULE_URL__', coreUrl.replace('./assets/', './'))
   .replace('__ZIP_MODULE_URL__', zipUrl.replace('./assets/', './'))
   .replace('__PREVIEW_MODULE_URL__', previewUrl.replace('./assets/', './'))
@@ -127,16 +161,25 @@ html = html
   .replace('__STYLES_URL__', stylesUrl)
   .replace('__APP_URL__', appUrl)
   .replace('__VIRITURA_VERSION__', virituraManifest.scoreViewerVersion);
-await writeFile(join(dist, 'index.html'), html);
+await writeFile(join(dist, 'index.html'), resourceCsp(html));
 await cp(join(root, 'LICENSE'), join(dist, 'LICENSE.txt'));
+await cp(join(root, 'node_modules', 'jszip', 'LICENSE.markdown'), join(dist, 'LICENSE-JSZip.txt'));
 await cp(join(root, 'node_modules', 'opensheetmusicdisplay', 'LICENSE'), join(dist, 'LICENSE-OSMD.txt'));
 await cp(join(viritura, 'LICENSE'), join(dist, 'LICENSE-Viritura.txt'));
 await cp(join(viritura, 'LICENSES', 'OFL-1.1.txt'), join(dist, 'LICENSE-OFL.txt'));
 await cp(join(viritura, 'THIRD_PARTY_NOTICES.md'), join(dist, 'NOTICES-Viritura.txt'));
-await cp(join(root, 'deploy', 'apache.htaccess'), join(dist, '.htaccess'));
+await writeFile(join(dist, '.htaccess'), resourceCsp(await readFile(join(root, 'deploy', 'apache.htaccess'), 'utf8')));
+await writeFile(join(dist, 'nginx.conf.example'), resourceCsp(await readFile(join(root, 'deploy', 'nginx.conf.example'), 'utf8')));
 await writeFile(join(dist, 'asset-manifest.json'), `${JSON.stringify({
   buildVersion,
   denigmaOnlineCommit,
+  musResources: musResourcesUrl,
+  musConfig: musConfigUrl,
+  resourceVersion: resourceManifest.version,
+  resourceBaseUrl,
+  resourceArchiveUrl,
+  resourceArchiveModule: resourceArchiveModuleUrl,
+  jszip: jszipUrl,
   wasm: wasmUrl,
   module: moduleUrl,
   worker: workerUrl,

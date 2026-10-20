@@ -158,3 +158,29 @@ size by name, converts the page size, spatium, and four margins to Viritura's
 layout units, and relays out when another entry is selected. The viewer
 creates canvases only for visible pages, so printing first exports every page
 with `engine.toSvg` into print-only images.
+
+## Legacy MUS resource boundary
+
+The page accepts arbitrary filenames; the worker uses `denigma_recognize_mus`
+before inspection. MUSX and EnigmaXML retain extension-based dispatch upstream.
+The worker reports `input-kind` so the page can disable EnigmaXML for legacy MUS.
+
+`mus-resources.js` owns font-list persistence, manifest validation, cache-first
+resource acquisition, integrity checks, and WASM resource-handle finalization.
+The build emits an immutable resource configuration from the pinned metadata and
+`DENIGMA_MUS_RESOURCE_BASE_URL` and optional `DENIGMA_MUS_RESOURCE_ARCHIVE_URL`. Only metadata is packaged with the application.
+Verified support bytes live in Cache Storage under SHA-256 keys; unchanged files
+survive inventory-version changes without a network request. On a cache miss,
+one shared ZIP request supplies missing entries. A lazy JSZip module extracts
+only manifest-listed files, which are verified before caching. The worker host also
+retains the complete successful resource set in memory across worker replacement.
+
+Inspection and conversion use the same finalized handle. A failed acquisition or
+finalization emits `resources-unavailable`, leaving conversion disabled until the
+user retries or explicitly selects reader defaults. A saved custom font list
+replaces kind 0 and is retained even in defaults mode. Changes to this setting
+reinspect the current legacy file in a fresh worker and discard prior outputs.
+The host attaches current settings to every request, including recovery requests.
+Reports include resource version/defaults mode and whether the font list is custom,
+without its contents. Cache Storage failures fall back to HTTP fetch/cache; font
+setting persistence failures are shown in the settings status.

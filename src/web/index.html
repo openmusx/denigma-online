@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Convert Finale MUSX files to MusicXML, MNX, or EnigmaXML entirely in your browser.">
+  <meta name="description" content="Convert Finale MUSX and legacy MUS files to MusicXML, MNX, or EnigmaXML entirely in your browser.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>Denigma Online</title>
   <link rel="stylesheet" href="__STYLES_URL__">
@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>Denigma Online</h1>
-    <p class="tagline">Convert Finale MUSX files to other music-notation formats.</p>
+    <p class="tagline">Convert Finale MUSX and legacy MUS files to other music-notation formats.</p>
   </header>
 
   <main>
@@ -26,14 +26,30 @@
       <fieldset>
         <legend>1. Finale file</legend>
         <div class="drop-zone" id="dropZone">
-          <label for="file" class="label">Choose a .musx file</label>
-          <input id="file" type="file" accept=".musx,.enigmaxml,.zip,application/vnd.makemusic.notation,application/zip" disabled>
-          <p class="help">You can also drop a MUSX file here.</p>
+          <label for="file" class="label">Choose a Finale file</label>
+          <input id="file" type="file" disabled>
+          <p class="help">You can also drop a MUSX, legacy MUS, or EnigmaXML file here. Legacy MUS files are recognized even without a file extension.</p>
           <p id="inputError" class="input-error" role="alert" hidden></p>
         </div>
         <div class="file-summary" id="inputSummary" hidden>
           <strong id="inputName"></strong>
           <span id="inputMeta"></span>
+        </div>
+      </fieldset>
+
+      <fieldset id="legacySettings">
+        <legend>Legacy MUS support</legend>
+        <p class="help">Playback, percussion, and text support files are downloaded when opening a legacy score. Your score is never uploaded.</p>
+        <label for="symbolFonts" class="label">Custom MacSymbolFonts.txt (optional)</label>
+        <input id="symbolFonts" type="file" accept=".txt,text/plain" disabled>
+        <p id="symbolFontsStatus" class="help" role="status">Using the hosted default symbol font list.</p>
+        <button id="restoreSymbolFonts" class="secondary small" type="button" disabled>Restore default</button>
+        <p id="legacyFormatHint" class="help" hidden>EnigmaXML output is unavailable for legacy MUS scores.</p>
+        <div id="resourceFailure" role="alert" hidden>
+          <p id="resourceError"></p>
+          <p>Continuing with reader defaults may reduce playback, percussion, and text fidelity. A custom symbol font list will still be used.</p>
+          <button id="retryResources" class="secondary" type="button">Retry support files</button>
+          <button id="useDefaults" class="secondary" type="button">Continue with reader defaults</button>
         </div>
       </fieldset>
 
@@ -74,7 +90,7 @@
           <label for="musicxmlAllFonts">All source fonts are available</label>
           <span class="hint">
             <button type="button" class="hint-toggle" aria-label="More about “All source fonts are available”">?</button>
-            <span id="musicxmlAllFontsHint" role="tooltip" class="hint-bubble">Exports text fonts and styling faithfully at the expense of portability. This option may be useful when opening the converted file on the same machine that created the source MUSX.</span>
+            <span id="musicxmlAllFontsHint" role="tooltip" class="hint-bubble">Exports text fonts and styling faithfully at the expense of portability. This option may be useful when opening the converted file on the same machine that created the source Finale file.</span>
           </span>
         </div>
         <div class="check-row">
@@ -184,13 +200,13 @@
     <section class="panel" aria-labelledby="aboutHeading">
       <details>
         <summary id="aboutHeading">About, help, and feedback</summary>
-        <p>Denigma reads Finale MUSX files and exports MusicXML, MNX, and EnigmaXML. This page is a static application: the server only supplies HTML, JavaScript, CSS, and WebAssembly.</p>
+        <p>Denigma reads Finale MUSX, legacy MUS, and EnigmaXML files. Legacy MUS exports MusicXML and MNX; MUSX also supports EnigmaXML extraction. This page is a static application: the server only supplies HTML, JavaScript, CSS, WebAssembly, and optional legacy support files.</p>
         <p>For conversion bugs, missing notation, or feature requests, <a id="aboutIssue" href="https://github.com/openmusx/denigma/issues" target="_blank" rel="noreferrer">visit the Denigma issue tracker</a>. Diagnostic reports include versions, selected settings, and Denigma messages, but never the source file contents.</p>
       </details>
     </section>
   </main>
 
-  <footer>Denigma Online · <a href="./LICENSE.txt" target="_blank" rel="noreferrer">Review the MIT License and warranty disclaimer</a> · No analytics, telemetry, remote fonts, or third-party runtime services.</footer>
+  <footer>Denigma Online · <a href="./LICENSE.txt" target="_blank" rel="noreferrer">Review the MIT License and warranty disclaimer</a> · No analytics, telemetry, or remote fonts. Legacy support files are downloaded from a separately hosted resource set.</footer>
   <script type="module" src="__APP_URL__"></script>
 </body>
 </html>

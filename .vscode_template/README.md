@@ -62,3 +62,15 @@ Saving `CMakeLists.txt` or another CMake file immediately reconfigures
 automatically. Configure and build operations reveal the CMake output channel
 without stealing focus from selection prompts. Build operations clear previous
 output when they start.
+
+For a server already running on port 8080, select **Denigma Online: Chrome
+(running server)** in Run and Debug and press **F5**. This profile rebuilds the
+web assets without starting a second server. Otherwise, use **Denigma Online:
+Chrome**, which builds and starts the server automatically. Debugger file paths
+resolve to the generated `dist/` directory.
+
+To test legacy input, open `tests/data/F100-note.mus` or
+`tests/data/F2008-parts-voiced.mus` in the site's file picker, or drag it onto the
+page. The first legacy import downloads the configured support ZIP; subsequent
+imports use the browser cache. Select a custom MacSymbolFonts.txt to test the
+remembered override, or use Restore default to remove it.

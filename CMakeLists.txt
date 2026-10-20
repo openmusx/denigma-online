@@ -13,7 +13,7 @@ endif()
 # effect. A cached DENIGMA_GIT_TAG would shadow the new value in an existing
 # build tree, which is why overrides use separate cache entries instead.
 set(DENIGMA_GIT_REPOSITORY_PIN "https://github.com/openmusx/denigma.git")
-set(DENIGMA_GIT_TAG_PIN "4eb6d168ee1cb52791607ed1c4bb1a454959444d")
+set(DENIGMA_GIT_TAG_PIN "627fb968865e3a9678c0e525cb0269a83a210f83")
 
 set(DENIGMA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
     "Override the pinned Denigma repository")
