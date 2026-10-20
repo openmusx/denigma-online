@@ -487,15 +487,15 @@ function handleWorkerMessage(data) {
   if (data.requestId && data.requestId !== pendingRequest) return;
   if (data.type === 'input-kind') {
     setLegacyInput(data.legacyInput);
-    if (data.legacyInput) setStatus('Loading legacy MUS support and reading the score…');
+    if (data.legacyInput) setStatus('Reading the legacy score…');
     return;
   }
   if (data.type === 'resources-unavailable') {
     resourcesBlocked = true;
     resourceInfo = 'Support files unavailable';
-    elements.resourceError.textContent = `Unable to load legacy support files: ${data.message}`;
+    elements.resourceError.textContent = `Unable to prepare legacy conversion: ${data.message}`;
     elements.resourceFailure.hidden = false;
-    setStatus('Legacy support files are unavailable. Retry or continue with reader defaults.', 'warning');
+    setStatus('Legacy conversion could not be prepared. Retry or continue with reader defaults.', 'warning');
     setBusy(false);
     return;
   }
@@ -558,7 +558,7 @@ function resourceDiagnostics(items) {
 }
 
 function showSymbolFontsStatus(note = '') {
-  elements.symbolFontsStatus.textContent = `${fontOverride ? `Using custom symbol font list: ${fontOverride.name}.` : 'Using the hosted default symbol font list.'}${note ? ` ${note}` : ''}`;
+  elements.symbolFontsStatus.textContent = `${fontOverride ? `Using custom symbol font list: ${fontOverride.name}.` : 'Using the default symbol font list.'}${note ? ` ${note}` : ''}`;
   setBusy(busy);
 }
 

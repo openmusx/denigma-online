@@ -39,16 +39,15 @@
 
       <fieldset id="legacySettings">
         <legend>Legacy MUS support</legend>
-        <p class="help">Playback, percussion, and text support files are downloaded when opening a legacy score. Your score is never uploaded.</p>
         <label for="symbolFonts" class="label">Custom MacSymbolFonts.txt (optional)</label>
         <input id="symbolFonts" type="file" accept=".txt,text/plain" disabled>
-        <p id="symbolFontsStatus" class="help" role="status">Using the hosted default symbol font list.</p>
+        <p id="symbolFontsStatus" class="help" role="status">Using the default symbol font list.</p>
         <button id="restoreSymbolFonts" class="secondary small" type="button" disabled>Restore default</button>
         <p id="legacyFormatHint" class="help" hidden>EnigmaXML output is unavailable for legacy MUS scores.</p>
         <div id="resourceFailure" role="alert" hidden>
           <p id="resourceError"></p>
           <p>Continuing with reader defaults may reduce playback, percussion, and text fidelity. A custom symbol font list will still be used.</p>
-          <button id="retryResources" class="secondary" type="button">Retry support files</button>
+          <button id="retryResources" class="secondary" type="button">Retry</button>
           <button id="useDefaults" class="secondary" type="button">Continue with reader defaults</button>
         </div>
       </fieldset>
@@ -200,13 +199,13 @@
     <section class="panel" aria-labelledby="aboutHeading">
       <details>
         <summary id="aboutHeading">About, help, and feedback</summary>
-        <p>Denigma reads Finale MUSX, legacy MUS, and EnigmaXML files. Legacy MUS exports MusicXML and MNX; MUSX also supports EnigmaXML extraction. This page is a static application: the server only supplies HTML, JavaScript, CSS, WebAssembly, and optional legacy support files.</p>
+        <p>Denigma reads Finale MUSX, legacy MUS, and EnigmaXML files. Legacy MUS exports MusicXML and MNX; MUSX also supports EnigmaXML extraction. Conversion happens entirely in your browser.</p>
         <p>For conversion bugs, missing notation, or feature requests, <a id="aboutIssue" href="https://github.com/openmusx/denigma/issues" target="_blank" rel="noreferrer">visit the Denigma issue tracker</a>. Diagnostic reports include versions, selected settings, and Denigma messages, but never the source file contents.</p>
       </details>
     </section>
   </main>
 
-  <footer>Denigma Online · <a href="./LICENSE.txt" target="_blank" rel="noreferrer">Review the MIT License and warranty disclaimer</a> · No analytics, telemetry, or remote fonts. Legacy support files are downloaded from a separately hosted resource set.</footer>
+  <footer>Denigma Online · <a href="./LICENSE.txt" target="_blank" rel="noreferrer">Review the MIT License and warranty disclaimer</a> · No analytics, telemetry, or remote fonts.</footer>
   <script type="module" src="__APP_URL__"></script>
 </body>
 </html>
