@@ -13,7 +13,7 @@ endif()
 # effect. A cached DENIGMA_GIT_TAG would shadow the new value in an existing
 # build tree, which is why overrides use separate cache entries instead.
 set(DENIGMA_GIT_REPOSITORY_PIN "https://github.com/openmusx/denigma.git")
-set(DENIGMA_GIT_TAG_PIN "627fb968865e3a9678c0e525cb0269a83a210f83")
+set(DENIGMA_GIT_TAG_PIN "a57b4b6b5f62dc0ec35d436872a25f8b08f5b874")
 
 set(DENIGMA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
     "Override the pinned Denigma repository")
@@ -43,7 +43,7 @@ endforeach()
 # is a score-engine-v<version> release tag or a commit on Viritura's main branch;
 # like Denigma's, it is a plain variable so that editing it here takes effect.
 set(VIRITURA_GIT_REPOSITORY_PIN "https://github.com/Viritura/Viritura.git")
-set(VIRITURA_REVISION_PIN "score-engine-v0.1.0")
+set(VIRITURA_REVISION_PIN "score-engine-v0.2.0")
 
 set(VIRITURA_GIT_REPOSITORY_OVERRIDE "" CACHE STRING
     "Override the pinned Viritura repository")
