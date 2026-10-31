@@ -23,6 +23,6 @@
   "license": "MIT",
   "dependencies": {
     "jszip": "3.10.1",
-    "opensheetmusicdisplay": "^2.1.3"
+    "opensheetmusicdisplay": "^2.2.1"
   }
 }
