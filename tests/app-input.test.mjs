@@ -36,6 +36,11 @@ async function app(storage = new Map()) {
   const enigmaOption = {};
   elements.format.querySelector = () => enigmaOption;
   elements.mnxPretty.checked = true;
+  for (const id of ['musicxmlCueLayer', 'mnxCueLayer', 'musicxmlPitchDisplay']) {
+    elements[id].value = '0';
+    elements[id].options = (id === 'musicxmlPitchDisplay' ? ['0', '1', '2'] : ['0', '1', '2', '3', '4'])
+      .map((value) => ({ value }));
+  }
   const workers = [];
   class FakeWorker {
     constructor() { this.messages = []; workers.push(this); }
@@ -63,6 +68,28 @@ async function app(storage = new Map()) {
 }
 
 const scoreFile = (name = 'score') => ({ name, size: 3, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
+
+test('MusicXML pitch display persists, restores, and applies only to MusicXML', async () => {
+  const ui = await app();
+  ui.elements.file.files = [scoreFile()];
+  await ui.elements.file.fire('change');
+  ui.inspected();
+  for (const [value, expected] of [['0', 0], ['1', 1], ['2', 2]]) {
+    ui.elements.musicxmlPitchDisplay.value = value;
+    await ui.elements.musicxmlOptions.fire('change');
+    await ui.elements.convert.fire('click');
+    assert.equal(ui.request().options.pitchDisplayMode, expected);
+  }
+  const reloaded = await app(ui.storage);
+  assert.equal(reloaded.elements.musicxmlPitchDisplay.value, '2');
+  for (const format of ['mnx', 'enigmaxml']) {
+    ui.elements.format.value = format;
+    await ui.elements.convert.fire('click');
+    assert.equal(ui.request().options.pitchDisplayMode, 0);
+  }
+  ui.storage.set('denigma-online.settings.v1', JSON.stringify({ musicxmlPitchDisplay: '99' }));
+  assert.equal((await app(ui.storage)).elements.musicxmlPitchDisplay.value, '0');
+});
 
 test('picker and drop both send arbitrary filenames to WASM and legacy input disables EnigmaXML', async () => {
   const ui = await app();

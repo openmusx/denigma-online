@@ -151,6 +151,7 @@ function convert(options) {
         options.splitInstruments ? 1 : 0,
         options.indentSpaces,
         options.cueLayer,
+        options.pitchDisplayMode ?? 0,
         selectionPointer,
         selections.length,
         0, // writeGapReport: the site never reads the MNX gap report

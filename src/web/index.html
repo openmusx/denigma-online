@@ -101,6 +101,18 @@
           </span>
         </div>
         <div class="label-row">
+          <label for="musicxmlPitchDisplay" class="label">Pitch display</label>
+          <span class="hint">
+            <button type="button" class="hint-toggle" aria-label="More about “Pitch display”">?</button>
+            <span id="musicxmlPitchDisplayHint" role="tooltip" class="hint-bubble">Many music apps lose instrument transposition when importing a score displayed in concert pitch. Choosing "Written pitch" may import them correctly, even if the Finale score displays concert pitch. The override applies to all selected score and parts.</span>
+          </span>
+        </div>
+        <select id="musicxmlPitchDisplay" aria-describedby="musicxmlPitchDisplayHint">
+          <option value="0">Preserve source setting</option>
+          <option value="1">Written pitch</option>
+          <option value="2">Concert pitch</option>
+        </select>
+        <div class="label-row">
           <label for="musicxmlCueLayer" class="label">Cue layer</label>
           <span class="hint">
             <button type="button" class="hint-toggle" aria-label="More about “Cue layer”">?</button>

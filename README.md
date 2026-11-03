@@ -9,6 +9,7 @@ document data stays in the browser.
 - Reads one local MUSX, legacy MUS, or EnigmaXML file. Legacy MUS is recognized by content, even without an extension.
 - Discovers the score and linked parts from that file.
 - Exports any selection of score and linked parts as MusicXML.
+- Preserves each document's pitch display by default, with MusicXML overrides for written or concert pitch.
 - Exports MNX with Denigma's playback-tempo, instrument-splitting, cue-layer,
   and JSON-formatting options.
 - Extracts EnigmaXML from MUSX; this output is unavailable for legacy MUS.

@@ -109,10 +109,26 @@ try {
   const result = await nonlegacy.receive('inspected', 1);
   assert.equal(result.success, true);
   assert.equal(result.resourceInfo, 'Not used');
+  for (const pitchDisplayMode of [0, 1, 2]) {
+    const requestId = 10 + pitchDisplayMode;
+    nonlegacy.send({ type: 'convert', requestId,
+      options: { format: 0, selectedOutputs: [0, 1], indentSpaces: 2, cueLayer: 0, pitchDisplayMode } });
+    const converted = await nonlegacy.receive('converted', requestId);
+    assert.equal(converted.success, true);
+    assert.equal(converted.outputs.length, 2);
+    for (const output of converted.outputs) {
+      const xml = new TextDecoder().decode(output.data);
+      assert.match(xml, /<score-partwise/);
+      if (pitchDisplayMode !== 0) {
+        assert.equal(xml.includes('<concert-score'), pitchDisplayMode === 2);
+        if (pitchDisplayMode === 1) assert.doesNotMatch(xml, /<for-part/);
+      }
+    }
+  }
   const damaged = (await readFile(new URL('data/F300-baseline.mus', import.meta.url))).subarray(0, 1024);
   nonlegacy.send({ type: 'inspect', requestId: 2, buffer: damaged, fileName: 'damaged' });
   const badResult = await nonlegacy.receive('inspected', 2);
   assert.equal(badResult.success, false);
   assert.match(badResult.diagnostics.map(({ message }) => message).join('\n'), /Damaged legacy/);
 } finally { await nonlegacy.worker.terminate(); }
-console.log('Built worker: legacy detection, resource failure/recovery, cache, override, defaults, MUSX, and damaged MUS passed.');
+console.log('Built worker: legacy detection, resource failure/recovery, cache, override, defaults, MUSX, MusicXML pitch display, and damaged MUS passed.');
