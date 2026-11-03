@@ -168,6 +168,7 @@ function settingsSnapshot() {
     musicxmlAllFonts: elements.musicxmlAllFonts.checked,
     musicxmlFinaleRestPosition: elements.musicxmlFinaleRestPosition.checked,
     musicxmlCueLayer: elements.musicxmlCueLayer.value,
+    musicxmlPitchDisplay: elements.musicxmlPitchDisplay.value,
     mnxTempo: elements.mnxTempo.checked,
     mnxSplit: elements.mnxSplit.checked,
     mnxPretty: elements.mnxPretty.checked,
@@ -192,7 +193,7 @@ function restoreSettings() {
     for (const id of ['musicxmlTempo', 'musicxmlAllFonts', 'musicxmlFinaleRestPosition', 'mnxTempo', 'mnxSplit', 'mnxPretty', 'mnxValidate']) {
       if (typeof saved[id] === 'boolean') elements[id].checked = saved[id];
     }
-    for (const id of ['musicxmlCueLayer', 'mnxCueLayer']) {
+    for (const id of ['musicxmlCueLayer', 'musicxmlPitchDisplay', 'mnxCueLayer']) {
       if (typeof saved[id] === 'string' && Array.from(elements[id].options, (option) => option.value).includes(saved[id])) {
         elements[id].value = saved[id];
       }
@@ -262,6 +263,7 @@ function conversionOptions() {
     includeTempo: formatKey === 'musicxml' ? elements.musicxmlTempo.checked : elements.mnxTempo.checked,
     allFontsAvailable: formatKey === 'musicxml' && elements.musicxmlAllFonts.checked,
     useFinaleRestPosition: formatKey === 'musicxml' && elements.musicxmlFinaleRestPosition.checked,
+    pitchDisplayMode: formatKey === 'musicxml' ? Number(elements.musicxmlPitchDisplay.value || 0) : 0,
     splitInstruments: formatKey === 'mnx' && elements.mnxSplit.checked,
     indentSpaces: formatKey === 'mnx' && elements.mnxPretty.checked ? 2 : -1,
     validate: formatKey === 'mnx' && elements.mnxValidate.checked,
@@ -282,6 +284,7 @@ function reportOptions(options) {
   if (formatKey === 'musicxml') {
     result['All source fonts are available'] = options.allFontsAvailable;
     result['Use Finale rest positions'] = options.useFinaleRestPosition;
+    result['Pitch display'] = ['Preserve source setting', 'Written pitch', 'Concert pitch'][options.pitchDisplayMode];
     result.Documents = options.selectedOutputs.join(', ');
   }
   if (formatKey === 'mnx') {
